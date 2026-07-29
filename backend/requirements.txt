@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+livekit
+livekit-api
+livekit-agents
+livekit-plugins-anthropic
+livekit-plugins-gladia
+livekit-plugins-cartesia
+livekit-plugins-silero
+python-dotenv
