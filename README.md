@@ -1,16 +1,38 @@
-# React + Vite
+# AgriHeal 🌾
+100% software platform merging crop diagnostics with proactive rural health management using Vani Voice AI.
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+## Setup Instructions
+1. **Clone the repository:**
+   ```bash
+   git clone <repository_url>
+   cd AgriHeal
+   ```
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+3. **Set up environment variables:**
+   ```bash
+   cp .env.example .env
+   # Add your Gemini API Key or other secrets to .env
+   ```
+4. **Start the development server:**
+   ```bash
+   npm run dev
+   ```
 
-Currently, two official plugins are available:
+## Development Scripts
+- `npm run dev`: Starts the local Vite development server.
+- `npm run build`: Compiles the application and generates PWA assets for production.
+- `npm run lint`: Runs oxlint to verify code hygiene.
+- `npm run preview`: Previews the production build locally.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Coding Standards
+- **Routing:** Use centralized `react-router-dom` in `App.jsx` with `lazy` loading for all pages.
+- **State Management:** Use React Context (`src/contexts/`) for global state (Auth, Farmer, Vani, Notifications). Do not rely solely on prop drilling for deep components.
+- **Styling:** Tailwind CSS is the standard. Use exact utility classes.
+- **Linting:** Keep warnings to a minimum. Do not leave unused imports in the codebase.
+- **Vani AI:** Use the global `VaniWidget` context. Do not create standalone assistant pages.
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## Phase Strategy
+The project is built in controlled phases. See `task.md` and `product_foundation.md` for phase gates, definitions, and architecture rules.
