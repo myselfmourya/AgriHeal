@@ -1,0 +1,447 @@
+export const ALL_SCHEMES = [
+  {
+    id: 1,
+    title: "Pradhan Mantri Kisan Samman Nidhi (PM-KISAN)",
+    provider: "Government of India",
+    type: "Government",
+    description: "An initiative by the government of India in which all farmers will get up to ₹6,000 per year as minimum income support.",
+    benefits: ["₹6,000 per year in 3 equal installments", "Direct Benefit Transfer to bank account"],
+    eligibility: ["Small and marginal farmers", "Own cultivable land holding"],
+    documents: ["Aadhaar Card", "Bank Passbook", "Land holding papers"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Financial", "Income Support"],
+    criteria: { landLimit: 2 } // hectares
+  },
+  {
+    id: 2,
+    title: "Pradhan Mantri Fasal Bima Yojana (PMFBY)",
+    provider: "Government of India",
+    type: "Government",
+    description: "Crop insurance scheme to provide financial support to farmers suffering crop loss/damage arising out of unforeseen events.",
+    benefits: ["Insurance cover for crop failure", "Low premium rates for farmers"],
+    eligibility: ["All farmers growing notified crops", "Sharecroppers and tenant farmers"],
+    documents: ["Aadhaar Card", "Land possession certificate", "Sowing certificate"],
+    status: "Active",
+    deadline: "Seasonal (Kharif/Rabi)",
+    tags: ["Insurance", "Protection"],
+    criteria: { }
+  },
+  {
+    id: 3,
+    title: "Kisan Credit Card (KCC)",
+    provider: "Government of India & Banks",
+    type: "Government",
+    description: "Aims to provide adequate and timely credit support from the banking system under a single window with flexible and simplified procedures to the farmers.",
+    benefits: ["Short term credit limit", "ATM-enabled RuPay Card", "Flexible repayment"],
+    eligibility: ["Individual farmers/joint borrowers", "Tenant farmers, oral lessees"],
+    documents: ["ID Proof", "Address Proof", "Land ownership records"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Credit", "Loan"],
+    criteria: { }
+  },
+  {
+    id: 4,
+    title: "Soil Health Card Scheme",
+    provider: "Government of India",
+    type: "Government",
+    description: "Aims at promoting soil test based and balanced use of fertilizers to enable farmers to realize higher yields at lower cost.",
+    benefits: ["Crop-wise recommendations of nutrients", "Improved soil fertility"],
+    eligibility: ["All farmers in India"],
+    documents: ["Land details", "Aadhaar Card"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Soil", "Testing"],
+    criteria: { }
+  },
+  {
+    id: 5,
+    title: "Pradhan Mantri Krishi Sinchayee Yojana (PMKSY)",
+    provider: "Government of India",
+    type: "Government",
+    description: "Focuses on 'Har Khet ko Pani' and improving water use efficiency 'More crop per drop' in a focused manner.",
+    benefits: ["Subsidy on micro-irrigation systems", "Improved water access"],
+    eligibility: ["Farmers with agricultural land", "Co-operative societies"],
+    documents: ["Aadhaar Card", "Land Record", "Bank Details"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Irrigation", "Subsidy"],
+    criteria: { }
+  },
+  {
+    id: 6,
+    title: "National Agriculture Market (e-NAM)",
+    provider: "Government of India",
+    type: "Government",
+    description: "Pan-India electronic trading portal which networks the existing APMC mandis to create a unified national market for agricultural commodities.",
+    benefits: ["Transparent online trading", "Better price discovery"],
+    eligibility: ["All farmers", "FPOs", "Traders"],
+    documents: ["Bank Details", "Aadhaar Card", "Mobile Number"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Market", "Trading"],
+    criteria: { }
+  },
+  {
+    id: 7,
+    title: "Paramparagat Krishi Vikas Yojana (PKVY)",
+    provider: "Government of India",
+    type: "Government",
+    description: "Elaborate scheme of the Ministry of Agriculture to promote organic farming and thereby improving soil health.",
+    benefits: ["₹50,000 per hectare for 3 years", "Support for organic certification"],
+    eligibility: ["Groups of farmers (50 or more)", "Willingness for organic farming"],
+    documents: ["Aadhaar Card", "Group formation details"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Organic", "Farming"],
+    criteria: { }
+  },
+  {
+    id: 8,
+    title: "PM-KUSUM",
+    provider: "MNRE, Government of India",
+    type: "Government",
+    description: "Pradhan Mantri Kisan Urja Suraksha evam Utthaan Mahabhiyan aims to add solar capacity and provide energy security to farmers.",
+    benefits: ["Subsidy for solar pumps", "Additional income by selling surplus power"],
+    eligibility: ["Individual farmers", "FPOs", "Water User Associations"],
+    documents: ["Aadhaar Card", "Land details", "Bank Passbook"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Energy", "Solar"],
+    criteria: { }
+  },
+  {
+    id: 9,
+    title: "National Mission for Sustainable Agriculture (NMSA)",
+    provider: "Government of India",
+    type: "Government",
+    description: "Aims to make agriculture more productive, sustainable, and remunerative and climate resilient.",
+    benefits: ["Support for integrated farming", "Resource conservation"],
+    eligibility: ["All farmers adopting sustainable practices"],
+    documents: ["Aadhaar Card", "Farm details"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Sustainable", "Environment"],
+    criteria: { }
+  },
+  {
+    id: 10,
+    title: "Agriculture Infrastructure Fund (AIF)",
+    provider: "Government of India",
+    type: "Government",
+    description: "Medium-long term debt financing facility for investment in viable projects for post-harvest management infrastructure.",
+    benefits: ["3% interest subvention", "Credit guarantee"],
+    eligibility: ["Farmers", "FPOs", "Agri-entrepreneurs"],
+    documents: ["Project report", "Bank loan application", "KYC docs"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Infrastructure", "Loan"],
+    criteria: { }
+  },
+  {
+    id: 11,
+    title: "Rythu Bandhu",
+    provider: "Government of Telangana",
+    type: "Government",
+    description: "Agriculture Investment Support Scheme providing ₹5,000 per acre per season to farmers in Telangana.",
+    benefits: ["₹10,000 per acre annually", "Direct deposit"],
+    eligibility: ["Land-owning farmers in Telangana"],
+    documents: ["Pattadar Passbook", "Aadhaar Card", "Bank Account"],
+    status: "Active",
+    deadline: "Seasonal",
+    tags: ["Financial", "State Scheme"],
+    criteria: { state: "Telangana" }
+  },
+  {
+    id: 12,
+    title: "Rythu Bima",
+    provider: "Government of Telangana",
+    type: "Government",
+    description: "Farmers Group Life Insurance Scheme providing ₹5 lakh financial relief to the family in case of farmer's death.",
+    benefits: ["₹5 Lakh insurance cover", "Premium paid entirely by Govt"],
+    eligibility: ["Farmers aged 18 to 59 in Telangana"],
+    documents: ["Aadhaar", "Pattadar passbook"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Insurance", "State Scheme"],
+    criteria: { state: "Telangana" }
+  },
+  {
+    id: 13,
+    title: "Kalia Scheme",
+    provider: "Government of Odisha",
+    type: "Government",
+    description: "Krushak Assistance for Livelihood and Income Augmentation for farmers in Odisha.",
+    benefits: ["Financial assistance for cultivation", "Livelihood support for landless"],
+    eligibility: ["Small/Marginal farmers in Odisha", "Landless agricultural laborers"],
+    documents: ["Aadhaar", "Bank passbook"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Financial", "State Scheme"],
+    criteria: { state: "Odisha" }
+  },
+  {
+    id: 14,
+    title: "Mukhyamantri Krushi Udyog Yojana",
+    provider: "Government of Odisha",
+    type: "Government",
+    description: "Provides subsidy up to ₹50 lakh to set up agro-based industries in Odisha.",
+    benefits: ["Capital investment subsidy", "Support for agri-enterprises"],
+    eligibility: ["Farmers, FPOs, Agri-entrepreneurs in Odisha"],
+    documents: ["DPR", "Bank consent", "Land records"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Enterprise", "State Scheme"],
+    criteria: { state: "Odisha" }
+  },
+  {
+    id: 15,
+    title: "Jagananna Vidya Deevena (Agri Students)",
+    provider: "Government of Andhra Pradesh",
+    type: "Government",
+    description: "Fee reimbursement for students, including those from farming families pursuing agriculture degrees.",
+    benefits: ["Full fee reimbursement", "Direct transfer to mother's account"],
+    eligibility: ["Students in AP", "Income limit applies"],
+    documents: ["Income certificate", "Aadhaar", "College admission proof"],
+    status: "Active",
+    deadline: "Annual",
+    tags: ["Education", "State Scheme"],
+    criteria: { state: "Andhra Pradesh" }
+  },
+  {
+    id: 16,
+    title: "YSR Rythu Bharosa",
+    provider: "Government of Andhra Pradesh",
+    type: "Government",
+    description: "Financial assistance of ₹13,500 per farmer family per year.",
+    benefits: ["₹13,500 annually (incl. PM-KISAN)", "Support for tenant farmers too"],
+    eligibility: ["Farmers in AP", "Tenant farmers"],
+    documents: ["Aadhaar", "Land records / Tenant card"],
+    status: "Active",
+    deadline: "Annual",
+    tags: ["Financial", "State Scheme"],
+    criteria: { state: "Andhra Pradesh" }
+  },
+  {
+    id: 17,
+    title: "Gramin Bhandaran Yojana",
+    provider: "Government of India",
+    type: "Government",
+    description: "Capital investment subsidy scheme for construction/renovation of rural godowns.",
+    benefits: ["Subsidy on storage construction", "Prevents distress sale"],
+    eligibility: ["Farmers", "FPOs", "Panchayats"],
+    documents: ["Detailed Project Report", "Bank Loan Details"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Infrastructure", "Storage"],
+    criteria: { }
+  },
+  {
+    id: 18,
+    title: "SBI Agri Gold Loan",
+    provider: "State Bank of India",
+    type: "Private",
+    description: "Quick credit for agricultural activities against gold ornaments.",
+    benefits: ["Lower interest rates for agriculture", "Quick processing"],
+    eligibility: ["Farmers holding gold"],
+    documents: ["Aadhaar", "Proof of agriculture (land records)"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Loan", "Credit"],
+    criteria: { }
+  },
+  {
+    id: 19,
+    title: "HDFC Kisan Gold Card",
+    provider: "HDFC Bank",
+    type: "Private",
+    description: "Single card for all agricultural credit needs including crop production, post-harvest, and consumption.",
+    benefits: ["Comprehensive credit limit", "Accident insurance cover"],
+    eligibility: ["Farmers with proven track record"],
+    documents: ["Aadhaar", "Land records", "Crop details"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Credit", "Card"],
+    criteria: { }
+  },
+  {
+    id: 20,
+    title: "Mahindra Samriddhi",
+    provider: "Mahindra & Mahindra",
+    type: "Private",
+    description: "A private initiative to provide farming solutions, soil testing, and advisory.",
+    benefits: ["Expert agronomy advice", "Soil testing services"],
+    eligibility: ["All farmers"],
+    documents: ["Basic ID"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Advisory", "Private"],
+    criteria: { }
+  },
+  // Adding more general ones to make the list robust
+  {
+    id: 21,
+    title: "National Beekeeping and Honey Mission (NBHM)",
+    provider: "Government of India",
+    type: "Government",
+    description: "Promotes scientific beekeeping for holistic growth of the sector.",
+    benefits: ["Subsidies for bee boxes", "Training and capacity building"],
+    eligibility: ["Farmers", "Beekeepers"],
+    documents: ["Aadhaar", "Registration"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Allied Agri", "Subsidy"],
+    criteria: { }
+  },
+  {
+    id: 22,
+    title: "Pradhan Mantri Matsya Sampada Yojana (PMMSY)",
+    provider: "Government of India",
+    type: "Government",
+    description: "A scheme to bring about ecologically healthy, economically viable, and socially inclusive development of the fisheries sector.",
+    benefits: ["Financial assistance for aquaculture", "Infrastructure support"],
+    eligibility: ["Fish farmers", "Fisheries Co-ops"],
+    documents: ["Aadhaar", "Project Report", "Land/Water body proof"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Fisheries", "Subsidy"],
+    criteria: { }
+  },
+  {
+    id: 23,
+    title: "Deen Dayal Upadhyaya Grameen Kaushalya Yojana",
+    provider: "Government of India",
+    type: "Government",
+    description: "Skill development initiative for rural youth to provide them with jobs with regular monthly wages.",
+    benefits: ["Free training", "Placement assistance"],
+    eligibility: ["Rural youth aged 15-35"],
+    documents: ["Aadhaar", "BPL card / Income certificate"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Skill Development", "Youth"],
+    criteria: { }
+  },
+  {
+    id: 24,
+    title: "ITC e-Choupal",
+    provider: "ITC Limited",
+    type: "Private",
+    description: "An initiative that links rural farmers with the company for procurement of agricultural products.",
+    benefits: ["Direct market access", "Real-time price info"],
+    eligibility: ["Farmers in operating regions"],
+    documents: ["ID Proof"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Market", "Private"],
+    criteria: { }
+  },
+  {
+    id: 25,
+    title: "Bhavantar Bhugtan Yojana",
+    provider: "Government of Madhya Pradesh",
+    type: "Government",
+    description: "Price deficiency payment scheme where the government pays farmers the difference between official MSP and the rate at which they sell their crops.",
+    benefits: ["Protection against price drops", "Direct bank transfer"],
+    eligibility: ["Farmers in MP"],
+    documents: ["Aadhaar", "Bank details", "Mandi receipt"],
+    status: "Active",
+    deadline: "Seasonal",
+    tags: ["Price Support", "State Scheme"],
+    criteria: { state: "Madhya Pradesh" }
+  },
+  {
+    id: 26,
+    title: "Mukhya Mantri Krishi Aashirwad Yojana",
+    provider: "Government of Jharkhand",
+    type: "Government",
+    description: "Provides financial assistance to farmers for Kharif crops.",
+    benefits: ["₹5,000 per acre (up to 5 acres)"],
+    eligibility: ["Small and marginal farmers in Jharkhand"],
+    documents: ["Aadhaar", "Land records"],
+    status: "Active",
+    deadline: "Annual",
+    tags: ["Financial", "State Scheme"],
+    criteria: { state: "Jharkhand" }
+  },
+  {
+    id: 27,
+    title: "Krishak Bandhu",
+    provider: "Government of West Bengal",
+    type: "Government",
+    description: "Financial assistance and life insurance for farmers.",
+    benefits: ["Up to ₹10,000 per year", "₹2 Lakh death benefit"],
+    eligibility: ["Farmers in West Bengal"],
+    documents: ["Aadhaar", "Voter ID", "ROR"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Financial", "State Scheme"],
+    criteria: { state: "West Bengal" }
+  },
+  {
+    id: 28,
+    title: "Saur Sujala Yojana",
+    provider: "Government of Chhattisgarh",
+    type: "Government",
+    description: "Provides solar powered irrigation pumps to farmers at subsidized rates.",
+    benefits: ["Highly subsidized solar pumps"],
+    eligibility: ["Farmers in Chhattisgarh"],
+    documents: ["Aadhaar", "Land records"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Irrigation", "State Scheme"],
+    criteria: { state: "Chhattisgarh" }
+  },
+  {
+    id: 29,
+    title: "Gobar-Dhan Yojana",
+    provider: "Government of India",
+    type: "Government",
+    description: "Galvanizing Organic Bio-Agro Resources Dhan scheme for managing cattle dung and solid waste in farms.",
+    benefits: ["Biogas generation", "Organic manure"],
+    eligibility: ["Gram panchayats", "Dairy farmers"],
+    documents: ["Aadhaar", "Project proposal"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Waste Management", "Energy"],
+    criteria: { }
+  },
+  {
+    id: 30,
+    title: "Sub-Mission on Agricultural Mechanization (SMAM)",
+    provider: "Government of India",
+    type: "Government",
+    description: "Aims to increase the reach of farm mechanization to small and marginal farmers.",
+    benefits: ["Subsidies on buying tractors and machinery", "Custom Hiring Centers"],
+    eligibility: ["All farmers, FPOs"],
+    documents: ["Aadhaar", "Land details", "Quotation of machinery"],
+    status: "Active",
+    deadline: "Rolling",
+    tags: ["Mechanization", "Subsidy"],
+    criteria: { }
+  }
+];
+
+export function filterSchemes(profile) {
+  // If no profile provided, return top general schemes
+  if (!profile) return ALL_SCHEMES.slice(0, 10);
+
+  const state = profile.location || "Unknown";
+  
+  // Basic filtering based on state criteria
+  let filtered = ALL_SCHEMES.filter(scheme => {
+    // If scheme has a specific state requirement
+    if (scheme.criteria?.state) {
+      if (scheme.criteria.state.toLowerCase() !== state.toLowerCase()) {
+        return false;
+      }
+    }
+    
+    // Can add land limit checks here later if profile has acreage
+    // if (scheme.criteria?.landLimit && profile.acreage > scheme.criteria.landLimit) return false;
+    
+    return true;
+  });
+
+  return filtered;
+}

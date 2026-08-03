@@ -1,9 +1,11 @@
 import React from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
+import { useVani } from '../../contexts/VaniContext';
 import { ChevronRight, Droplets, TrendingUp, Bug, Sprout, CloudRain, Settings as SettingsIcon, Mic, User, Ruler, RefreshCw } from 'lucide-react';
 
 export default function GeneralSettings() {
-  const { settings, updateSetting, updateSection } = useSettings();
+  const { settings, updateSetting } = useSettings();
+  const { startVaniSession } = useVani();
   const { general, language, voiceAssistant, displayTheme, weatherAlerts } = settings;
 
   const quickSettings = [
@@ -100,7 +102,10 @@ export default function GeneralSettings() {
               <p className="text-xs text-green-700 ">Ask Vani if you need help with any setting.</p>
             </div>
           </div>
-          <button className="w-full sm:w-auto px-6 py-2.5 bg-green-700 text-white rounded-full font-bold text-sm shadow-sm hover:bg-green-800 transition-colors flex items-center justify-center gap-2">
+          <button
+            onClick={() => startVaniSession({ intent: 'settings_help' })}
+            className="w-full sm:w-auto px-6 py-2.5 bg-green-700 text-white rounded-full font-bold text-sm shadow-sm hover:bg-green-800 active:scale-95 transition-all flex items-center justify-center gap-2"
+          >
             <Mic className="w-4 h-4" /> Talk to Vani
           </button>
         </div>

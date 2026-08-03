@@ -1,0 +1,149 @@
+[
+  {
+    "id": "CMD_EN_01",
+    "language": "en",
+    "intent": "CROP_HEALTH",
+    "command": "My cotton leaves are turning yellow and curling downwards. What should I do?",
+    "expected_action": "ANALYSE_IMAGE_PROMPT"
+  },
+  {
+    "id": "CMD_EN_02",
+    "language": "en",
+    "intent": "WEATHER",
+    "command": "Is it going to rain tomorrow afternoon?",
+    "expected_action": "WEATHER_INFO"
+  },
+  {
+    "id": "CMD_EN_03",
+    "language": "en",
+    "intent": "MARKET_PRICE",
+    "command": "What is the current mandi price for maize in Warangal?",
+    "expected_action": "MARKET_INFO"
+  },
+  {
+    "id": "CMD_EN_04",
+    "language": "en",
+    "intent": "RECORD_IRRIGATION",
+    "command": "I just watered field A for 2 hours.",
+    "expected_action": "RECORD_IRRIGATION_CONFIRM"
+  },
+  {
+    "id": "CMD_EN_05",
+    "language": "en",
+    "intent": "SCHEME_INFO",
+    "command": "Am I eligible for PM Kisan samman nidhi?",
+    "expected_action": "SCHEME_INFO"
+  },
+  {
+    "id": "CMD_EN_06",
+    "language": "en",
+    "intent": "CONTACT_EXPERT",
+    "command": "I need to talk to a soil scientist about fertilizer.",
+    "expected_action": "CONTACT_EXPERT"
+  },
+  {
+    "id": "CMD_EN_07",
+    "language": "en",
+    "intent": "RECORD_FERTILIZER",
+    "command": "I applied 50kg of Urea to my paddy today.",
+    "expected_action": "RECORD_FERTILIZER_CONFIRM"
+  },
+  {
+    "id": "CMD_HI_01",
+    "language": "hi",
+    "intent": "CROP_HEALTH",
+    "command": "मेरे कपास के पत्ते पीले हो रहे हैं और नीचे की तरफ मुड़ रहे हैं।",
+    "expected_action": "ANALYSE_IMAGE_PROMPT"
+  },
+  {
+    "id": "CMD_HI_02",
+    "language": "hi",
+    "intent": "WEATHER",
+    "command": "क्या कल दोपहर को बारिश होगी?",
+    "expected_action": "WEATHER_INFO"
+  },
+  {
+    "id": "CMD_HI_03",
+    "language": "hi",
+    "intent": "MARKET_PRICE",
+    "command": "मंडी में आज गेहूं का क्या भाव है?",
+    "expected_action": "MARKET_INFO"
+  },
+  {
+    "id": "CMD_HI_04",
+    "language": "hi",
+    "intent": "RECORD_IRRIGATION",
+    "command": "मैंने आज खेत में पानी लगाया है।",
+    "expected_action": "RECORD_IRRIGATION_CONFIRM"
+  },
+  {
+    "id": "CMD_HI_05",
+    "language": "hi",
+    "intent": "SCHEME_INFO",
+    "command": "क्या मुझे पीएम किसान योजना का पैसा मिलेगा?",
+    "expected_action": "SCHEME_INFO"
+  },
+  {
+    "id": "CMD_HI_06",
+    "language": "hi",
+    "intent": "CONTACT_EXPERT",
+    "command": "मुझे किसी कृषि डॉक्टर से बात करनी है।",
+    "expected_action": "CONTACT_EXPERT"
+  },
+  {
+    "id": "CMD_HI_07",
+    "language": "hi",
+    "intent": "RECORD_FERTILIZER",
+    "command": "मैंने अपने धान में यूरिया डाला है।",
+    "expected_action": "RECORD_FERTILIZER_CONFIRM"
+  },
+  {
+    "id": "CMD_TE_01",
+    "language": "te",
+    "intent": "CROP_HEALTH",
+    "command": "నా పత్తి ఆకులు పసుపు రంగులోకి మారి కిందకు ముడుచుకుపోతున్నాయి.",
+    "expected_action": "ANALYSE_IMAGE_PROMPT"
+  },
+  {
+    "id": "CMD_TE_02",
+    "language": "te",
+    "intent": "WEATHER",
+    "command": "రేపు మధ్యాహ్నం వర్షం పడుతుందా?",
+    "expected_action": "WEATHER_INFO"
+  },
+  {
+    "id": "CMD_TE_03",
+    "language": "te",
+    "intent": "MARKET_PRICE",
+    "command": "వరంగల్ లో పత్తి ధర ఎంత ఉంది?",
+    "expected_action": "MARKET_INFO"
+  },
+  {
+    "id": "CMD_TE_04",
+    "language": "te",
+    "intent": "RECORD_IRRIGATION",
+    "command": "నేను ఈరోజు పొలానికి నీరు పెట్టాను.",
+    "expected_action": "RECORD_IRRIGATION_CONFIRM"
+  },
+  {
+    "id": "CMD_TE_05",
+    "language": "te",
+    "intent": "SCHEME_INFO",
+    "command": "నేను పీఎం కిసాన్ పథకానికి అర్హుడనా?",
+    "expected_action": "SCHEME_INFO"
+  },
+  {
+    "id": "CMD_TE_06",
+    "language": "te",
+    "intent": "CONTACT_EXPERT",
+    "command": "నేను వ్యవసాయ డాక్టర్ తో మాట్లాడాలి.",
+    "expected_action": "CONTACT_EXPERT"
+  },
+  {
+    "id": "CMD_TE_07",
+    "language": "te",
+    "intent": "RECORD_FERTILIZER",
+    "command": "నేను ఈరోజు వరికి యూరియా వేశాను.",
+    "expected_action": "RECORD_FERTILIZER_CONFIRM"
+  }
+]

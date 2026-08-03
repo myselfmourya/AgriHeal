@@ -74,7 +74,7 @@ function PageLoader() {
 
 // ── App shell ──────────────────────────────────────────────────────────────
 export default function App() {
-  const { greet, startWakeWord } = useVani()
+  const { greet } = useVani()
   const { profile } = useFarmer()
   const { isAuthenticated, hasCompletedOnboarding } = useAuth()
   const location = useLocation()
@@ -90,7 +90,6 @@ export default function App() {
       const firstName = profile?.name ? profile.name.split(' ')[0] : 'Farmer'
       setTimeout(() => greet(firstName, '38°C with partial clouds'), 1200)
     }
-    startWakeWord()
   }, []) // eslint-disable-line
 
   return (

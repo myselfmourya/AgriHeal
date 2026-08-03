@@ -1,0 +1,798 @@
+
+> agriheal@0.0.0 lint
+> oxlint
+
+
+  ! eslint(no-unused-vars): Variable 'speak' is declared but never used. Unused variables should start with a '_'.
+   ,-[src/pages/crops/CropYieldEstimator.jsx:6:11]
+ 5 | export default function CropYieldEstimator() {
+ 6 |   const { speak } = useVani();
+   :           ^^|^^
+   :             `-- 'speak' is declared here
+ 7 | 
+   `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Catch parameter 'e' is caught but never used.
+    ,-[check_bighaat.js:27:12]
+ 26 |     }
+ 27 |   } catch (e) {}
+    :            |
+    :            `-- 'e' is declared here
+ 28 |   return null;
+    `----
+  help: Consider handling this error.
+
+  ! eslint(no-unused-vars): Identifier 'AlertTriangle' is imported but never used.
+   ,-[src/components/ui/OfflineBanner.jsx:3:19]
+ 2 | import { useTranslation } from 'react-i18next';
+ 3 | import { WifiOff, AlertTriangle } from 'lucide-react';
+   :                   ^^^^^^|^^^^^^
+   :                         `-- 'AlertTriangle' is imported here
+ 4 | 
+   `----
+  help: Consider removing this import.
+
+  ! react(only-export-components): Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+    ,-[src/contexts/ThemeContext.jsx:22:14]
+ 21 | 
+ 22 | export const useTheme = () => useContext(ThemeContext)
+    :              ^^^^^^^^
+    `----
+
+  ! eslint(no-unused-vars): Variable 'profile' is declared but never used. Unused variables should start with a '_'.
+   ,-[src/pages/crops/CropSoilHealth.jsx:8:11]
+ 7 |   const { speak } = useVani();
+ 8 |   const { profile } = useFarmer();
+   :           ^^^|^^^
+   :              `-- 'profile' is declared here
+ 9 | 
+   `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Catch parameter 'e' is caught but never used.
+     ,-[src/contexts/SettingsContext.jsx:144:16]
+ 143 |         };
+ 144 |       } catch (e) {
+     :                |
+     :                `-- 'e' is declared here
+ 145 |         return defaultSettings;
+     `----
+  help: Consider handling this error.
+
+  ! react(only-export-components): Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+   ,-[src/contexts/SettingsContext.jsx:5:14]
+ 4 | 
+ 5 | export const useSettings = () => {
+   :              ^^^^^^^^^^^
+ 6 |   const context = useContext(SettingsContext);
+   `----
+
+  ! react(only-export-components): Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+    ,-[src/contexts/AuthContext.jsx:53:17]
+ 52 | 
+ 53 | export function useAuth() {
+    :                 ^^^^^^^
+ 54 |   return useContext(AuthContext);
+    `----
+
+  ! eslint(no-unused-vars): Variable 'updateSetting' is declared but never used. Unused variables should start with a '_'.
+   ,-[src/pages/settings/CropFarmSettings.jsx:6:21]
+ 5 | export default function CropFarmSettings() {
+ 6 |   const { settings, updateSetting } = useSettings();
+   :                     ^^^^^^|^^^^^^
+   :                           `-- 'updateSetting' is declared here
+ 7 |   const { cropFarm } = settings;
+   `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'cropFarm' is declared but never used. Unused variables should start with a '_'.
+   ,-[src/pages/settings/CropFarmSettings.jsx:7:11]
+ 6 |   const { settings, updateSetting } = useSettings();
+ 7 |   const { cropFarm } = settings;
+   :           ^^^^|^^^
+   :               `-- 'cropFarm' is declared here
+ 8 | 
+   `----
+  help: Consider removing this declaration.
+
+  ! react-hooks(exhaustive-deps): React Hook useEffect has a missing dependency: 'speakText'
+    ,-[src/components/VaniVoiceBar.jsx:38:6]
+ 35 |     if (lastSpokenText) {
+ 36 |       speakText(lastSpokenText);
+    :       ^^^^|^^^^
+    :           `-- useEffect uses `speakText` here
+ 37 |     }
+ 38 |   }, [lastSpokenText]);
+    :      ^^^^^^^^^^^^^^^^
+ 39 | 
+    `----
+  help: Either include it or remove the dependency array.
+
+  ! eslint(no-unused-vars): Identifier 'Globe' is imported but never used.
+   ,-[src/pages/NewsCenter.jsx:5:37]
+ 4 | import { useFarmer } from '../contexts/FarmerContext';
+ 5 | import { Search, Volume2, Bookmark, Globe, Clock, ShieldAlert, CloudRain, TrendingUp, Building2, Leaf } from 'lucide-react';
+   :                                     ^^|^^
+   :                                       `-- 'Globe' is imported here
+ 6 | import EmptyState from '../components/ui/EmptyState';
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Variable 'profile' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/pages/NewsCenter.jsx:71:11]
+ 70 |   const { speak } = useVani();
+ 71 |   const { profile } = useFarmer();
+    :           ^^^|^^^
+    :              `-- 'profile' is declared here
+ 72 |   const [activeTab, setActiveTab] = useState('All');
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'inputText' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/pages/ImageAnalysisPage.jsx:9:10]
+  8 |   const [treatmentTab, setTreatmentTab] = useState('chemical');
+  9 |   const [inputText, setInputText] = useState('');
+    :          ^^^^|^^^^
+    :              `-- 'inputText' is declared here
+ 10 |   const [cameraPermissionDenied, setCameraPermissionDenied] = useState(false);
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'setInputText' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/pages/ImageAnalysisPage.jsx:9:21]
+  8 |   const [treatmentTab, setTreatmentTab] = useState('chemical');
+  9 |   const [inputText, setInputText] = useState('');
+    :                     ^^^^^^|^^^^^
+    :                           `-- 'setInputText' is declared here
+ 10 |   const [cameraPermissionDenied, setCameraPermissionDenied] = useState(false);
+    `----
+  help: Consider removing this declaration.
+
+  x Expected a semicolon or an implicit semicolon after a statement, but found none
+    ,-[src/pages/settings/LanguageSettings.jsx:10:21]
+  9 | 
+ 10 |     { id: 'en', name: 'English', nativeName: 'English' },
+    :                     ^
+ 11 |     { id: 'hi', name: 'Hindi', nativeName: 'हिंदी' },
+    `----
+  help: Try inserting a semicolon here
+
+  ! react(only-export-components): Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+   ,-[src/contexts/VaniContext.jsx:6:14]
+ 5 | 
+ 6 | export const LANGS = [
+   :              ^^^^^
+ 7 |   { code: 'hi', label: 'Hindi' },
+   `----
+
+  ! react(only-export-components): Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+    ,-[src/contexts/VaniContext.jsx:16:14]
+ 15 | 
+ 16 | export const useVani = () => useContext(VaniContext);
+    :              ^^^^^^^
+ 17 | 
+    `----
+
+  ! react-hooks(exhaustive-deps): React Hook useCallback has a missing dependency: 'processCommandWithGemini'
+     ,-[src/contexts/VaniContext.jsx:153:6]
+ 141 |     // Send to Gemini (or fallback)
+ 142 |     const response = await processCommandWithGemini(text);
+     :                            ^^^^^^^^^^^^|^^^^^^^^^^^
+     :                                        `-- useCallback uses `processCommandWithGemini` here
+ 143 |     
+ 144 |     // Speak the response
+ 145 |     if (response.speech) {
+ 146 |       setTimeout(() => speak(response.speech), 100);
+ 147 |     }
+ 148 |     
+ 149 |     // Execute action
+ 150 |     if (response.action === 'NAVIGATE' && response.target) {
+ 151 |       navigate(response.target);
+ 152 |     }
+ 153 |   }, [navigate, speak, i18n.language]);
+     :      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 154 | 
+     `----
+  help: Either include it or remove the dependency array.
+
+  ! react-hooks(exhaustive-deps): React Hook useCallback has unnecessary dependency: i18n.language
+     ,-[src/contexts/VaniContext.jsx:153:6]
+ 152 |     }
+ 153 |   }, [navigate, speak, i18n.language]);
+     :      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 154 | 
+     `----
+  help: Either include it or remove the dependency array.
+
+  ! eslint(no-unused-vars): Variable 'updateSection' is declared but never used. Unused variables should start with a '_'.
+   ,-[src/pages/settings/GeneralSettings.jsx:6:36]
+ 5 | export default function GeneralSettings() {
+ 6 |   const { settings, updateSetting, updateSection } = useSettings();
+   :                                    ^^^^^^|^^^^^^
+   :                                          `-- 'updateSection' is declared here
+ 7 |   const { general, language, voiceAssistant, displayTheme, weatherAlerts } = settings;
+   `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'general' is declared but never used. Unused variables should start with a '_'.
+   ,-[src/pages/settings/GeneralSettings.jsx:7:11]
+ 6 |   const { settings, updateSetting, updateSection } = useSettings();
+ 7 |   const { general, language, voiceAssistant, displayTheme, weatherAlerts } = settings;
+   :           ^^^|^^^
+   :              `-- 'general' is declared here
+ 8 | 
+   `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'language' is declared but never used. Unused variables should start with a '_'.
+   ,-[src/pages/settings/GeneralSettings.jsx:7:20]
+ 6 |   const { settings, updateSetting, updateSection } = useSettings();
+ 7 |   const { general, language, voiceAssistant, displayTheme, weatherAlerts } = settings;
+   :                    ^^^^|^^^
+   :                        `-- 'language' is declared here
+ 8 | 
+   `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'voiceAssistant' is declared but never used. Unused variables should start with a '_'.
+   ,-[src/pages/settings/GeneralSettings.jsx:7:30]
+ 6 |   const { settings, updateSetting, updateSection } = useSettings();
+ 7 |   const { general, language, voiceAssistant, displayTheme, weatherAlerts } = settings;
+   :                              ^^^^^^^|^^^^^^
+   :                                     `-- 'voiceAssistant' is declared here
+ 8 | 
+   `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'displayTheme' is declared but never used. Unused variables should start with a '_'.
+   ,-[src/pages/settings/GeneralSettings.jsx:7:46]
+ 6 |   const { settings, updateSetting, updateSection } = useSettings();
+ 7 |   const { general, language, voiceAssistant, displayTheme, weatherAlerts } = settings;
+   :                                              ^^^^^^|^^^^^
+   :                                                    `-- 'displayTheme' is declared here
+ 8 | 
+   `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'weatherAlerts' is declared but never used. Unused variables should start with a '_'.
+   ,-[src/pages/settings/GeneralSettings.jsx:7:60]
+ 6 |   const { settings, updateSetting, updateSection } = useSettings();
+ 7 |   const { general, language, voiceAssistant, displayTheme, weatherAlerts } = settings;
+   :                                                            ^^^^^^|^^^^^^
+   :                                                                  `-- 'weatherAlerts' is declared here
+ 8 | 
+   `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'profile' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/pages/ToolsStore.jsx:13:11]
+ 12 | export default function ToolsStore() {
+ 13 |   const { profile, myCrops } = useFarmer();
+    :           ^^^|^^^
+    :              `-- 'profile' is declared here
+ 14 |   
+    `----
+  help: Consider removing this declaration.
+
+  ! react-hooks(exhaustive-deps): React Hook useEffect has a missing dependency: 'handleAISearch'
+     ,-[src/pages/ToolsStore.jsx:127:6]
+ 122 |       const timer = setTimeout(() => {
+ 123 |         handleAISearch();
+     :         ^^^^^^^|^^^^^^
+     :                `-- useEffect uses `handleAISearch` here
+ 124 |       }, 1000);
+ 125 |       return () => clearTimeout(timer);
+ 126 |     }
+ 127 |   }, [searchQuery, filteredProducts.length, isFetchingAI]);
+     :      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 128 | 
+     `----
+  help: Either include it or remove the dependency array.
+
+  ! eslint(no-unused-vars): Identifier 'WeatherAlertsSettings' is imported but never used.
+    ,-[src/pages/Settings.jsx:13:8]
+ 12 | import DisplayThemeSettings from './settings/DisplayThemeSettings';
+ 13 | import WeatherAlertsSettings from './settings/WeatherAlertsSettings';
+    :        ^^^^^^^^^^|^^^^^^^^^^
+    :                  `-- 'WeatherAlertsSettings' is imported here
+ 14 | import CropFarmSettings from './settings/CropFarmSettings';
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'MarketPricesSettings' is imported but never used.
+    ,-[src/pages/Settings.jsx:15:8]
+ 14 | import CropFarmSettings from './settings/CropFarmSettings';
+ 15 | import MarketPricesSettings from './settings/MarketPricesSettings';
+    :        ^^^^^^^^^^|^^^^^^^^^
+    :                  `-- 'MarketPricesSettings' is imported here
+ 16 | import IrrigationWaterSettings from './settings/IrrigationWaterSettings';
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'IrrigationWaterSettings' is imported but never used.
+    ,-[src/pages/Settings.jsx:16:8]
+ 15 | import MarketPricesSettings from './settings/MarketPricesSettings';
+ 16 | import IrrigationWaterSettings from './settings/IrrigationWaterSettings';
+    :        ^^^^^^^^^^^|^^^^^^^^^^^
+    :                   `-- 'IrrigationWaterSettings' is imported here
+ 17 | import PestDiseaseSettings from './settings/PestDiseaseSettings';
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'PestDiseaseSettings' is imported but never used.
+    ,-[src/pages/Settings.jsx:17:8]
+ 16 | import IrrigationWaterSettings from './settings/IrrigationWaterSettings';
+ 17 | import PestDiseaseSettings from './settings/PestDiseaseSettings';
+    :        ^^^^^^^^^|^^^^^^^^^
+    :                 `-- 'PestDiseaseSettings' is imported here
+ 18 | import FertilizerSoilSettings from './settings/FertilizerSoilSettings';
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'FertilizerSoilSettings' is imported but never used.
+    ,-[src/pages/Settings.jsx:18:8]
+ 17 | import PestDiseaseSettings from './settings/PestDiseaseSettings';
+ 18 | import FertilizerSoilSettings from './settings/FertilizerSoilSettings';
+    :        ^^^^^^^^^^^|^^^^^^^^^^
+    :                   `-- 'FertilizerSoilSettings' is imported here
+ 19 | import StoreOrdersSettings from './settings/StoreOrdersSettings';
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'StoreOrdersSettings' is imported but never used.
+    ,-[src/pages/Settings.jsx:19:8]
+ 18 | import FertilizerSoilSettings from './settings/FertilizerSoilSettings';
+ 19 | import StoreOrdersSettings from './settings/StoreOrdersSettings';
+    :        ^^^^^^^^^|^^^^^^^^^
+    :                 `-- 'StoreOrdersSettings' is imported here
+ 20 | import CommunitySettings from './settings/CommunitySettings';
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'CommunitySettings' is imported but never used.
+    ,-[src/pages/Settings.jsx:20:8]
+ 19 | import StoreOrdersSettings from './settings/StoreOrdersSettings';
+ 20 | import CommunitySettings from './settings/CommunitySettings';
+    :        ^^^^^^^^|^^^^^^^^
+    :                `-- 'CommunitySettings' is imported here
+ 21 | import ExpertsAdvisorySettings from './settings/ExpertsAdvisorySettings';
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'ExpertsAdvisorySettings' is imported but never used.
+    ,-[src/pages/Settings.jsx:21:8]
+ 20 | import CommunitySettings from './settings/CommunitySettings';
+ 21 | import ExpertsAdvisorySettings from './settings/ExpertsAdvisorySettings';
+    :        ^^^^^^^^^^^|^^^^^^^^^^^
+    :                   `-- 'ExpertsAdvisorySettings' is imported here
+ 22 | import NotificationSettings from './settings/NotificationSettings';
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Variable 'PlaceholderSettings' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/pages/Settings.jsx:31:7]
+ 30 | // Dummy component for unimplemented settings
+ 31 | const PlaceholderSettings = ({ title }) => (
+    :       ^^^^^^^^^|^^^^^^^^^
+    :                `-- 'PlaceholderSettings' is declared here
+ 32 |   <div className="flex flex-col items-center justify-center h-64 text-gray-500 animate-in fade-in">
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'listening' is declared but never used. Unused variables should start with a '_'.
+   ,-[src/components/VaniFAB.jsx:7:21]
+ 6 | export default function VaniFAB() {
+ 7 |   const { openVani, listening, speaking, wakeActive } = useVani()
+   :                     ^^^^|^^^^
+   :                         `-- 'listening' is declared here
+ 8 |   const location = useLocation()
+   `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'speaking' is declared but never used. Unused variables should start with a '_'.
+   ,-[src/components/VaniFAB.jsx:7:32]
+ 6 | export default function VaniFAB() {
+ 7 |   const { openVani, listening, speaking, wakeActive } = useVani()
+   :                                ^^^^|^^^
+   :                                    `-- 'speaking' is declared here
+ 8 |   const location = useLocation()
+   `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'wakeActive' is declared but never used. Unused variables should start with a '_'.
+   ,-[src/components/VaniFAB.jsx:7:42]
+ 6 | export default function VaniFAB() {
+ 7 |   const { openVani, listening, speaking, wakeActive } = useVani()
+   :                                          ^^^^^|^^^^
+   :                                               `-- 'wakeActive' is declared here
+ 8 |   const location = useLocation()
+   `----
+  help: Consider removing this declaration.
+
+  ! react(only-export-components): Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+    ,-[src/contexts/NotificationContext.jsx:50:14]
+ 49 | 
+ 50 | export const useNotification = () => useContext(NotificationContext)
+    :              ^^^^^^^^^^^^^^^
+    `----
+
+  ! eslint(no-unused-vars): Variable 'navigate' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/components/navigation/SmartSearch.jsx:25:9]
+ 24 |   const inputRef = useRef(null);
+ 25 |   const navigate = useNavigate();
+    :         ^^^^|^^^
+    :             `-- 'navigate' is declared here
+ 26 |   const { t } = useTranslation();
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Identifier 'CalendarIcon' is imported but never used.
+   ,-[src/pages/FarmCare.jsx:7:42]
+ 6 |   Bug, Flame, Snowflake, ActivitySquare, CheckCircle,
+ 7 |      Sunrise, Sunset, Gauge, Calendar as CalendarIcon
+   :                                          ^^^^^^|^^^^^
+   :                                                `-- 'CalendarIcon' is imported here
+ 8 | } from 'lucide-react';
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Variable 'navigate' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/pages/FarmCare.jsx:14:9]
+ 13 | export default function FarmCare() {
+ 14 |   const navigate = useNavigate();
+    :         ^^^^|^^^
+    :             `-- 'navigate' is declared here
+ 15 |   const { notifications } = useFarmer();
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'reminderTasks' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/pages/FarmCare.jsx:16:9]
+ 15 |   const { notifications } = useFarmer();
+ 16 |   const reminderTasks = notifications.filter(n => n.type === 'Reminder');
+    :         ^^^^^^|^^^^^^
+    :               `-- 'reminderTasks' is declared here
+ 17 |   const [locationName, setLocationName] = useState('Fetching location...');
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Catch parameter 'error' is caught but never used.
+    ,-[src/pages/FarmCare.jsx:32:22]
+ 31 |               setLocationName(`${city}${state ? `, ${state}` : ''} • Active Monitoring`);
+ 32 |             } catch (error) {
+    :                      ^^|^^
+    :                        `-- 'error' is declared here
+ 33 |               setLocationName('Field 1 (Paddy) • Active Monitoring');
+    `----
+  help: Consider handling this error.
+
+  ! eslint(no-unused-vars): Variable 'profile' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/pages/crops/CropMoreTools.jsx:19:11]
+ 18 |   const { speak } = useVani();
+ 19 |   const { profile, myCrops } = useFarmer();
+    :           ^^^|^^^
+    :              `-- 'profile' is declared here
+ 20 |   const navigate = useNavigate();
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'myCrops' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/pages/crops/CropMoreTools.jsx:19:20]
+ 18 |   const { speak } = useVani();
+ 19 |   const { profile, myCrops } = useFarmer();
+    :                    ^^^|^^^
+    :                       `-- 'myCrops' is declared here
+ 20 |   const navigate = useNavigate();
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Parameter 'crop' is declared but never used. Unused parameters should start with a '_'.
+   ,-[src/pages/crops/CropFertilizer.jsx:4:27]
+ 3 | 
+ 4 | const CropFertilizer = ({ crop }) => {
+   :                           ^^|^
+   :                             `-- 'crop' is declared here
+ 5 |   return (
+   `----
+  help: Consider removing this parameter.
+
+  ! eslint(no-unused-vars): Parameter 'crop' is declared but never used. Unused parameters should start with a '_'.
+   ,-[src/pages/crops/CropGrowth.jsx:4:23]
+ 3 | 
+ 4 | const CropGrowth = ({ crop }) => {
+   :                       ^^|^
+   :                         `-- 'crop' is declared here
+ 5 |   // Mock data for demonstration
+   `----
+  help: Consider removing this parameter.
+
+  ! react(only-export-components): Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+    ,-[src/pages/CropManagement.jsx:10:14]
+  9 | // Fallback logic for new crops added without full details
+ 10 | export const generateCropDetails = (crop) => {
+    :              ^^^^^^^^^^^^^^^^^^^
+ 11 |   return {
+    `----
+
+  ! eslint(no-unused-vars): Parameter 'crop' is declared but never used. Unused parameters should start with a '_'.
+   ,-[src/pages/crops/CropPestDisease.jsx:4:28]
+ 3 | 
+ 4 | const CropPestDisease = ({ crop }) => {
+   :                            ^^|^
+   :                              `-- 'crop' is declared here
+ 5 |   return (
+   `----
+  help: Consider removing this parameter.
+
+  ! eslint(no-unused-vars): Parameter 'crop' is declared but never used. Unused parameters should start with a '_'.
+   ,-[src/pages/crops/CropIrrigation.jsx:4:27]
+ 3 | 
+ 4 | const CropIrrigation = ({ crop }) => {
+   :                           ^^|^
+   :                             `-- 'crop' is declared here
+ 5 |   return (
+   `----
+  help: Consider removing this parameter.
+
+  ! eslint(no-unused-vars): Variable 'speak' is declared but never used. Unused variables should start with a '_'.
+   ,-[src/pages/crops/CropWeather.jsx:6:11]
+ 5 | export default function CropWeather() {
+ 6 |   const { speak } = useVani();
+   :           ^^|^^
+   :             `-- 'speak' is declared here
+ 7 | 
+   `----
+  help: Consider removing this declaration.
+
+  ! react-hooks(exhaustive-deps): React Hook useEffect has a missing dependency: 'profile.state'
+    ,-[src/pages/SchemesCenter.jsx:59:6]
+ 43 |             } else {
+ 44 |               setCurrentLocation(profile.state);
+    :                                  ^^^|^^^
+    :                                     `-- useEffect uses `profile.state` here
+ 45 |             }
+ 46 |           } catch (error) {
+ 47 |             console.error("Error fetching location", error);
+ 48 |             setCurrentLocation(profile.state);
+ 49 |           }
+ 50 |         },
+ 51 |         (error) => {
+ 52 |           console.error("Error getting geolocation", error);
+ 53 |           setCurrentLocation(profile.state);
+ 54 |         }
+ 55 |       );
+ 56 |     } else {
+ 57 |       setCurrentLocation(profile.state);
+ 58 |     }
+ 59 |   }, []);
+    :      ^^
+ 60 | 
+    `----
+  help: Either include it or remove the dependency array.
+
+  ! react-hooks(exhaustive-deps): React Hook useEffect has a missing dependency: 'selectedCrop.id'
+    ,-[src/pages/FertilisersPage.jsx:22:6]
+ 18 |   useEffect(() => {
+ 19 |     if (myCrops.length > 0 && !myCrops.find(c => c.id === selectedCrop?.id)) {
+    :                                                           ^^^^^^|^^^^^
+    :                                                                 `-- useEffect uses `selectedCrop.id` here
+ 20 |       setSelectedCrop(myCrops[0])
+ 21 |     }
+ 22 |   }, [myCrops])
+    :      ^^^^^^^^^
+ 23 | 
+    `----
+  help: Either include it or remove the dependency array.
+
+  ! eslint(no-unused-vars): Variable 'profile' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/pages/Records.jsx:50:9]
+ 49 |   const farmerContext = useFarmer();
+ 50 |   const profile = farmerContext?.profile || {};
+    :         ^^^|^^^
+    :            `-- 'profile' is declared here
+ 51 |   const cropHistory = farmerContext?.cropHistory?.length > 0 ? farmerContext.cropHistory : MOCK_CROP_HISTORY;
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Identifier 'Droplet' is imported but never used.
+    ,-[src/components/VaniAI.jsx:17:3]
+ 16 |   
+ 17 |   Droplet
+    :   ^^^|^^^
+    :      `-- 'Droplet' is imported here
+ 18 | } from 'lucide-react';
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Parameter 'idx' is declared but never used. Unused parameters should start with a '_'.
+     ,-[src/components/VaniAI.jsx:252:29]
+ 251 |       <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 relative z-10 pb-40 max-w-4xl mx-auto w-full hide-scrollbar">
+ 252 |         {messages.map((msg, idx) => (
+     :                             ^|^
+     :                              `-- 'idx' is declared here
+ 253 |           <motion.div 
+     `----
+  help: Consider removing this parameter.
+
+  ! react-hooks(exhaustive-deps): React Hook useEffect has missing dependencies: 'synthesisRef', and 'handleUserInput'
+    ,-[src/components/VaniAI.jsx:93:6]
+ 73 |         if (finalTranscript) {
+ 74 |           handleUserInput(finalTranscript);
+    :           ^^^^^^^^^^^^^^^
+ 75 |         } else {
+ 76 |           setTranscript(interimTranscript);
+ 77 |         }
+ 78 |       };
+ 79 | 
+ 80 |       recognitionRef.current.onerror = (event) => {
+ 81 |         if (event.error !== 'no-speech') setIsListening(false);
+ 82 |       };
+ 83 | 
+ 84 |       recognitionRef.current.onend = () => {
+ 85 |         if (isListening) recognitionRef.current.start();
+ 86 |       };
+ 87 |     }
+ 88 | 
+ 89 |     return () => {
+ 90 |       if (recognitionRef.current) recognitionRef.current.stop();
+ 91 |       if (synthesisRef) synthesisRef.cancel();
+    :           ^^^^^^^^^^^^
+ 92 |     };
+ 93 |   }, [isListening]);
+    :      ^^^^^^^^^^^^^
+ 94 | 
+    `----
+  help: Either include it or remove the dependency array.
+
+  ! eslint(no-unused-vars): Parameter 'onSpeak' is declared but never used. Unused parameters should start with a '_'.
+    ,-[src/components/HealMarketplace.jsx:90:43]
+ 89 | 
+ 90 | export default function HealMarketplace({ onSpeak }) {
+    :                                           ^^^|^^^
+    :                                              `-- 'onSpeak' is declared here
+ 91 |   const { marketFavorites: favorites, toggleMarketFavorite } = useFarmer();
+    `----
+  help: Consider removing this parameter.
+
+  ! eslint(no-unused-vars): Catch parameter 'error' is caught but never used.
+     ,-[src/components/HealMarketplace.jsx:150:20]
+ 149 |             }
+ 150 |           } catch (error) {
+     :                    ^^|^^
+     :                      `-- 'error' is declared here
+ 151 |             setLocation("Kurnool, Andhra Pradesh");
+     `----
+  help: Consider handling this error.
+
+  ! react(only-export-components): Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+    ,-[src/components/HealMarketplace.jsx:15:14]
+ 14 | // Accurate current Indian Market Prices (per quintal)
+ 15 | export const allCrops = [
+    :              ^^^^^^^^
+ 16 |   // Grains & Cereals
+    `----
+
+  ! eslint(no-unused-vars): Parameter 'onSpeak' is declared but never used. Unused parameters should start with a '_'.
+    ,-[src/components/FarmerDashboard.jsx:17:43]
+ 16 | 
+ 17 | export default function FarmerDashboard({ onSpeak }) {
+    :                                           ^^^|^^^
+    :                                              `-- 'onSpeak' is declared here
+ 18 |   const { t } = useTranslation();
+    `----
+  help: Consider removing this parameter.
+
+  ! eslint(no-unused-vars): Variable 'displayCrops' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/components/FarmerDashboard.jsx:24:9]
+ 23 | 
+ 24 |   const displayCrops = myCrops.map(generateCropDetails).slice(0, 3);
+    :         ^^^^^^|^^^^^
+    :               `-- 'displayCrops' is declared here
+ 25 | 
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'setSelectedDate' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/components/FarmerDashboard.jsx:26:24]
+ 25 | 
+ 26 |   const [selectedDate, setSelectedDate] = useState(new Date());
+    :                        ^^^^^^^|^^^^^^^
+    :                               `-- 'setSelectedDate' is declared here
+ 27 |   const [calendarDate, setCalendarDate] = useState(new Date());
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'displayedMonth' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/components/FarmerDashboard.jsx:46:9]
+ 45 |   const weekDates = getWeekDates(calendarDate);
+ 46 |   const displayedMonth = weekDates[0].toLocaleString('default', { month: 'long', year: 'numeric' });
+    :         ^^^^^^^|^^^^^^
+    :                `-- 'displayedMonth' is declared here
+ 47 | 
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'handlePrevWeek' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/components/FarmerDashboard.jsx:48:9]
+ 47 | 
+ 48 |   const handlePrevWeek = () => {
+    :         ^^^^^^^|^^^^^^
+    :                `-- 'handlePrevWeek' is declared here
+ 49 |     setCalendarDate(prev => new Date(prev.getTime() - 7 * 24 * 60 * 60 * 1000));
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'handleNextWeek' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/components/FarmerDashboard.jsx:51:9]
+ 50 |   };
+ 51 |   const handleNextWeek = () => {
+    :         ^^^^^^^|^^^^^^
+    :                `-- 'handleNextWeek' is declared here
+ 52 |     setCalendarDate(prev => new Date(prev.getTime() + 7 * 24 * 60 * 60 * 1000));
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'reminderTasks' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/components/FarmerDashboard.jsx:56:9]
+ 55 |   // Only show reminders for the selected date
+ 56 |   const reminderTasks = notifications.filter(n => {
+    :         ^^^^^^|^^^^^^
+    :               `-- 'reminderTasks' is declared here
+ 57 |     if (n.type !== 'Reminder') return false;
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'pendingTasksCount' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/components/FarmerDashboard.jsx:64:9]
+ 63 |   const allReminders = notifications.filter(n => n.type === 'Reminder');
+ 64 |   const pendingTasksCount = allReminders.filter(n => n.unread).length;
+    :         ^^^^^^^^|^^^^^^^^
+    :                 `-- 'pendingTasksCount' is declared here
+ 65 | 
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'http' is declared but never used. Unused variables should start with a '_'.
+   ,-[check_links.cjs:1:7]
+ 1 | const http = require('http');
+   :       ^^|^
+   :         `-- 'http' is declared here
+ 2 | const https = require('https');
+   `----
+  help: Consider removing this declaration.
+
+  ! react(only-export-components): Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+     ,-[src/contexts/FarmerContext.jsx:193:17]
+ 192 | 
+ 193 | export function useFarmer() {
+     :                 ^^^^^^^^^
+ 194 |   const context = useContext(FarmerContext)
+     `----
+
+  ! react-hooks(exhaustive-deps): React Hook useEffect has a missing dependency: 'onSpeak'
+    ,-[src/components/CropNutrition.jsx:47:6]
+ 43 |   useEffect(() => {
+ 44 |     if (onSpeak) {
+    :         ^^^|^^^
+    :            `-- useEffect uses `onSpeak` here
+ 45 |       onSpeak("Welcome to the Crop Nutrition module. Select a crop to analyze your soil's compatibility.");
+ 46 |     }
+ 47 |   }, []);
+    :      ^^
+ 48 | 
+    `----
+  help: Either include it or remove the dependency array.
+
+  ! eslint(no-unused-vars): Identifier 'https' is imported but never used.
+   ,-[scripts/generateProducts.js:2:8]
+ 1 | import fs from 'fs';
+ 2 | import https from 'https';
+   :        ^^|^^
+   :          `-- 'https' is imported here
+ 3 | 
+   `----
+  help: Consider removing this import.
+
+Found 74 warnings and 1 error.
+Finished in 11ms on 126 files with 91 rules using 10 threads.

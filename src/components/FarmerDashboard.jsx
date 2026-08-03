@@ -15,7 +15,7 @@ import { useTranslation } from 'react-i18next';
 
 export default function FarmerDashboard({ onSpeak }) {
   const { t } = useTranslation();
-  const { startWakeWord } = useVani();
+  const { startVaniSession } = useVani();
   const { notifications, myCrops } = useFarmer();
   const navigate = useNavigate();
   const audioRef = useRef(null);
@@ -83,7 +83,7 @@ export default function FarmerDashboard({ onSpeak }) {
             {t('dashboard.whats_happening', "Here's what's happening in your farm today.")}
           </p>
           <button 
-            onClick={startWakeWord}
+            onClick={() => startVaniSession({ intent: 'dashboard_help' })}
             className="mt-6 flex items-center justify-center gap-2 bg-green-700 hover:bg-green-800 text-white px-5 py-2.5 rounded-full font-medium transition-colors shadow-md w-max"
           >
             <Mic className="w-5 h-5" />

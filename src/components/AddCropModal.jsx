@@ -4,7 +4,7 @@ import { useVani } from '../contexts/VaniContext'
 import { useFarmer } from '../contexts/FarmerContext'
 
 export default function AddCropModal({ isOpen, onClose }) {
-  const { startWakeWord } = useVani()
+  const { startVaniSession } = useVani()
   const { addMyCrop } = useFarmer()
   const [step, setStep] = useState(1)
   const [cropName, setCropName] = useState('')
@@ -21,8 +21,9 @@ export default function AddCropModal({ isOpen, onClose }) {
 
   const handleTalkToVani = () => {
     onClose()
-    startWakeWord()
-    // Simulated: In a real app we would pass context to Vani indicating the user wants to add a crop.
+    // Open a full LiveKit session with context so the agent knows
+    // the user wants to add a crop.
+    startVaniSession({ intent: 'add_crop' })
   }
 
   const handleNext = () => {

@@ -1,0 +1,111 @@
+{
+  "common": {
+    "loading": "लोड हो रहा है...",
+    "error": "कुछ गलत हो गया",
+    "retry": "पुन: प्रयास करें",
+    "offline": "आप ऑफ़लाइन हैं। सहेजा गया डेटा दिखा रहा है।",
+    "save": "सहेजें",
+    "cancel": "रद्द करें",
+    "comingSoon": "जल्द आ रहा है",
+    "readMore": "और पढ़ें",
+    "readLess": "कम पढ़ें",
+    "buyNow": "अभी खरीदें"
+  },
+  "nav": {
+    "home": "होम",
+    "farm": "खेत की देखभाल",
+    "market": "मंडी",
+    "store": "उपकरण स्टोर",
+    "news": "समाचार",
+    "schemes": "योजनाएं",
+    "community": "समुदाय",
+    "settings": "सेटिंग्स",
+    "profile": "प्रोफ़ाइल"
+  },
+  "dashboard": {
+    "welcome": "वापसी पर स्वागत है",
+    "talk_to_vani": "वाणी से बात करें",
+    "myCrops": "मेरी फसलें",
+    "addCrop": "नई फसल जोड़ें",
+    "weather": "मौसम",
+    "recommendations": "एआई सुझाव",
+    "tasks": "आज के कार्य",
+    "humidity": "नमी",
+    "wind": "हवा",
+    "rain_chance": "बारिश की संभावना",
+    "soil_moisture": "मिट्टी की नमी",
+    "market_prices": "मंडी भाव",
+    "good": "अच्छा",
+    "partly_cloudy": "आंशिक रूप से बादल"
+  },
+  "search": {
+    "placeholder": "फसल, बीमारी, मौसम खोजें...",
+    "recent": "हाल की खोजें",
+    "trending": "ट्रेंडिंग",
+    "no_matches": "कोई सटीक मेल नहीं मिला",
+    "try_searching": "फसल, मौसम, या मंडी भाव खोजने का प्रयास करें",
+    "ai_context": "एआई आपके खेत के संदर्भ को समझता है",
+    "advanced": "उन्नत खोज",
+    "categories": {
+      "all": "सभी",
+      "crops": "फसलें",
+      "diseases": "बीमारियां",
+      "videos": "वीडियो",
+      "marketplace": "बाज़ार",
+      "experts": "विशेषज्ञ",
+      "reports": "रिपोर्ट",
+      "schemes": "योजनाएं"
+    }
+  },
+  "news": {
+    "title": "कृषि समाचार",
+    "noNews": "कोई समाचार नहीं मिला",
+    "tryAdjusting": "अपने फ़िल्टर या खोज को समायोजित करने का प्रयास करें।",
+    "keyHighlights": "मुख्य आकर्षण"
+  },
+  "schemes": {
+    "title": "सरकारी और निजी योजनाएं",
+    "all": "सभी योजनाएं",
+    "government": "सरकारी",
+    "private": "निजी",
+    "benefits": "लाभ",
+    "eligibility": "पात्रता",
+    "documents": "आवश्यक दस्तावेज"
+  },
+  "store": {
+    "title": "कृषि उपकरण और इनपुट",
+    "seeds": "बीज और पौधे",
+    "fertiliser": "उर्वरक",
+    "pesticide": "कीटनाशक",
+    "tools": "कृषि उपकरण",
+    "machinery": "मशीनरी",
+    "outOfStock": "स्टॉक में नहीं"
+  },
+  "farmCare": {
+    "title": "खेत की देखभाल और निदान",
+    "scanCrop": "फसल स्कैन करें",
+    "diagnose": "बीमारी का निदान करें",
+    "recommendations": "उपचार के सुझाव"
+  },
+  "profileSetup": {
+    "step1Title": "अपनी भाषा चुनें",
+    "step2Title": "अपनी भूमिका चुनें",
+    "step3Title": "फोन नंबर सत्यापित करें",
+    "step4Title": "आपका स्थान",
+    "roles": {
+      "farmer": "किसान",
+      "family": "परिवार का सदस्य",
+      "expert": "विशेषज्ञ",
+      "vendor": "विक्रेता"
+    },
+    "continue": "जारी रखें",
+    "finish": "पूरा करें"
+  },
+  "settings": {
+    "title": "सेटिंग्स",
+    "language": "भाषा",
+    "notifications": "सूचनाएं",
+    "offlineMode": "ऑफ़लाइन मोड",
+    "help": "सहायता"
+  }
+}

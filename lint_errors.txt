@@ -1,0 +1,70 @@
+
+> agriheal@0.0.0 lint
+> oxlint --quiet
+
+
+  x react-hooks(rules-of-hooks): React Hook "useFallback" cannot be called inside a callback. React Hooks must be called in a React function component or a custom React Hook function.
+    ,-[src/pages/LocalVendorsPage.jsx:74:15]
+ 73 |               // Fallback to default location
+ 74 |               useFallback();
+    :               ^^^^^^|^^^^^^
+    :                     `-- This Hook call is inside a nested callback.
+ 75 |             }
+    `----
+
+  x react-hooks(rules-of-hooks): React Hook "useFallback" cannot be called inside a callback. React Hooks must be called in a React function component or a custom React Hook function.
+    ,-[src/pages/LocalVendorsPage.jsx:79:13]
+ 78 |             console.error("Geolocation denied or failed:", err);
+ 79 |             useFallback();
+    :             ^^^^^^|^^^^^^
+    :                   `-- This Hook call is inside a nested callback.
+ 80 |           },
+    `----
+
+  x react-hooks(rules-of-hooks): React Hook "useFallback" is called in function "Anonymous" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word "use".
+    ,-[src/pages/LocalVendorsPage.jsx:84:9]
+ 50 |       useEffect(() => {
+ 51 | ,->     const fetchLocationAndVendors = async () => {
+ 52 | |         setIsLoading(true);
+ 53 | |         if ("geolocation" in navigator) {
+ 54 | |           navigator.geolocation.getCurrentPosition(
+ 55 | |             async (pos) => {
+ 56 | |               try {
+ 57 | |                 const { latitude, longitude } = pos.coords;
+ 58 | |                 setPosition({ lat: latitude, lng: longitude });
+ 59 | |                 
+ 60 | |                 // Reverse Geocode
+ 61 | |                 const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+ 62 | |                 const data = await res.json();
+ 63 | |                 const city = data.address.city || data.address.town || data.address.village || data.address.county || data.address.state_district;
+ 64 | |                 setLocationName(city ? `${city}, ${data.address.state}` : 'Your Location');
+ 65 | |                 
+ 66 | |                 // Fetch Mock Vendors
+ 67 | |                 const nearbyVendors = await vendorsService.getNearbyVendors(latitude, longitude);
+ 68 | |                 setVendors(nearbyVendors);
+ 69 | |                 
+ 70 | |                 setIsLoading(false);
+ 71 | |               } catch (err) {
+ 72 | |                 console.error("Geocoding or vendor fetch failed:", err);
+ 73 | |                 // Fallback to default location
+ 74 | |                 useFallback();
+ 75 | |               }
+ 76 | |             },
+ 77 | |             (err) => {
+ 78 | |               console.error("Geolocation denied or failed:", err);
+ 79 | |               useFallback();
+ 80 | |             },
+ 81 | |             { timeout: 10000 }
+ 82 | |           );
+ 83 | |         } else {
+ 84 | |           useFallback();
+    : |           ^^^^^|^^^^^
+    : |                `-- Hook is called here
+ 85 | |         }
+ 86 | |->     };
+    : `---- Outer function
+ 87 |         
+    `----
+
+Found 79 warnings and 3 errors.
+Finished in 9ms on 136 files with 91 rules using 10 threads.

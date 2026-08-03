@@ -1,9 +1,18 @@
 import React from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
+import { useTranslation } from 'react-i18next';
 
 export default function LanguageSettings() {
   const { settings, updateSetting } = useSettings();
+  const { i18n } = useTranslation();
   const { language } = settings;
+
+  const handleSelect = (langId) => {
+    // Persist to SettingsContext (localStorage)
+    updateSetting('language', 'appLanguage', langId);
+    // Apply immediately to i18next (strips -IN suffix: 'hi-IN' → 'hi')
+    i18n.changeLanguage(langId.split('-')[0]);
+  };
 
   const LANGUAGES = [
     { id: 'en-IN', name: 'English', nativeName: 'English' },
@@ -44,7 +53,7 @@ export default function LanguageSettings() {
                 name="appLanguage" 
                 value={lang.id} 
                 checked={language.appLanguage === lang.id}
-                onChange={() => updateSetting('language', 'appLanguage', lang.id)}
+                onChange={() => handleSelect(lang.id)}
                 className="hidden"
               />
             </label>

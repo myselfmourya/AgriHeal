@@ -1,0 +1,129 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Try Again",
+    "offline": "You are offline. Showing cached data.",
+    "save": "Save",
+    "cancel": "Cancel",
+    "comingSoon": "Coming Soon",
+    "readMore": "Read More",
+    "readLess": "Read Less",
+    "buyNow": "Buy Now"
+  },
+  "nav": {
+    "home": "Home",
+    "farm": "Farm Care",
+    "market": "Market",
+    "store": "Tools Store",
+    "news": "News",
+    "schemes": "Schemes",
+    "community": "Community",
+    "settings": "Settings",
+    "profile": "Profile"
+  },
+  "dashboard": {
+    "welcome": "Welcome back",
+    "talk_to_vani": "Talk to Vani",
+    "myCrops": "My Crops",
+    "addCrop": "Add New Crop",
+    "weather": "Weather",
+    "recommendations": "AI Recommendations",
+    "tasks": "Today's Tasks",
+    "humidity": "Humidity",
+    "wind": "Wind",
+    "rain_chance": "Rain Chance",
+    "soil_moisture": "Soil Moisture",
+    "market_prices": "Market Prices",
+    "good": "Good",
+    "partly_cloudy": "Partly Cloudy",
+    "breaking_news": "Breaking Agri News",
+    "view_all_news": "View all"
+  },
+  "search": {
+    "placeholder": "Search crops, diseases, weather...",
+    "recent": "Recent Searches",
+    "trending": "Trending Now",
+    "no_matches": "No exact matches found",
+    "try_searching": "Try searching for crops, weather, or market prices",
+    "ai_context": "AI understands your farm context",
+    "advanced": "Advanced Search",
+    "categories": {
+      "all": "All",
+      "crops": "Crops",
+      "diseases": "Diseases",
+      "videos": "Videos",
+      "marketplace": "Marketplace",
+      "experts": "Experts",
+      "reports": "Reports",
+      "schemes": "Schemes"
+    }
+  },
+  "news": {
+    "title": "Agricultural News",
+    "pageTitle": "AI News Center",
+    "noNews": "No News Found",
+    "tryAdjusting": "Try adjusting your filters or search query.",
+    "keyHighlights": "Key Highlights",
+    "generative": "Generative summaries customized for",
+    "searchPlaceholder": "Search crop news, policies, weather...",
+    "fetchingUpdates": "Fetching updates near {{location}}",
+    "errorTitle": "Could not load news",
+    "aiAnalysis": "AI Analysis: This directly impacts farmers in the {{location}} region. Ensure you take necessary precautions. More detailed coverage is expected from local authorities.",
+    "relevantTo": "Relevant to your {{crop}}.",
+    "sourceConfirmed": "Source verification confirmed via {{source}}.",
+    "updatesTailored": "Updates tailored for {{location}} region.",
+    "category_All": "All",
+    "category_Bookmarks": "Bookmarks",
+    "category_CropDiseases": "Crop Diseases",
+    "category_Weather": "Weather",
+    "category_Market": "Market",
+    "category_GovtPolicy": "Govt Policy",
+    "category_Organic": "Organic"
+  },
+  "schemes": {
+    "title": "Govt & Private Schemes",
+    "all": "All Schemes",
+    "government": "Government",
+    "private": "Private",
+    "benefits": "Benefits",
+    "eligibility": "Eligibility",
+    "documents": "Required Documents"
+  },
+  "store": {
+    "title": "Agri Tools & Inputs",
+    "seeds": "Seeds & Saplings",
+    "fertiliser": "Fertilisers",
+    "pesticide": "Pesticides",
+    "tools": "Farm Tools",
+    "machinery": "Machinery",
+    "outOfStock": "Out of Stock"
+  },
+  "farmCare": {
+    "title": "Farm Care & Diagnostics",
+    "scanCrop": "Scan Crop",
+    "diagnose": "Diagnose Disease",
+    "recommendations": "Treatment Recommendations"
+  },
+  "profileSetup": {
+    "step1Title": "Choose your Language",
+    "step2Title": "Select Your Role",
+    "step3Title": "Verify Phone Number",
+    "step4Title": "Your Location",
+    "roles": {
+      "farmer": "Farmer",
+      "family": "Family Member",
+      "expert": "Expert / Agronomist",
+      "vendor": "Vendor / Supplier"
+    },
+    "continue": "Continue",
+    "finish": "Complete Setup"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "notifications": "Notifications",
+    "offlineMode": "Offline Mode",
+    "help": "Help & Support"
+  }
+}
