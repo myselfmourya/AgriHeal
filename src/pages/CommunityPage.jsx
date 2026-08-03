@@ -38,6 +38,11 @@ export default function CommunityPage() {
 
   return (
     <div className="min-h-full bg-[#f4f7f5] pb-24 md:pb-12 relative">
+      <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center gap-2 text-amber-800 text-sm">
+        <span className="text-amber-500">⚠️</span>
+        <span><strong>Community features are coming soon.</strong> Posts shown are sample content.</span>
+      </div>
+
       {/* Header */}
       <div className="bg-white px-4 md:px-8 py-6 shadow-sm relative z-10">
         <h1 className="text-2xl font-black text-slate-800">Community & Services</h1>

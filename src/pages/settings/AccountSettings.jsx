@@ -21,7 +21,9 @@ export default function AccountSettings() {
                 </svg>
               </div>
               <div>
-                <h3 className="font-bold text-gray-900">Google</h3>
+                <h3 className="font-bold text-gray-900">
+                  <span>Google <span className="ml-1 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-normal">Coming soon</span></span>
+                </h3>
                 <p className="text-xs text-gray-500">Connected</p>
               </div>
             </div>
@@ -43,7 +45,7 @@ export default function AccountSettings() {
               </div>
             </div>
             <button className="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full hover:bg-blue-100 transition-colors">
-              Connect
+              <span>Connect <span className="ml-1 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-normal">Coming soon</span></span>
             </button>
           </div>
 
@@ -92,7 +94,7 @@ export default function AccountSettings() {
               </div>
             </div>
             <div className="flex items-center text-sm font-bold text-gray-500">
-              Change <ChevronRight className="w-4 h-4 ml-1" />
+              <span>Change <span className="ml-1 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-normal">Coming soon</span></span> <ChevronRight className="w-4 h-4 ml-1" />
             </div>
           </div>
 

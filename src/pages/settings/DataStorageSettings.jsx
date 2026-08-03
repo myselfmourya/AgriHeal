@@ -52,7 +52,10 @@ export default function DataStorageSettings() {
             <span className="font-bold text-gray-900 ">Storage Used</span>
             <span className="text-xs text-gray-500">Local Cache: 156MB</span>
           </div>
-          <button className="text-sm font-bold text-gray-600 bg-gray-100  px-3 py-1 rounded-lg">Clear Cache</button>
+          <div className="text-right">
+            <button className="text-sm font-bold text-gray-600 bg-gray-100  px-3 py-1 rounded-lg">Clear Cache</button>
+            <p className="text-xs text-amber-600 mt-1">⚠️ Cloud backup integration is coming soon.</p>
+          </div>
         </div>
 
         <div className="p-3">

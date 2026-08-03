@@ -217,55 +217,60 @@ export default function FarmCare() {
           </section>
 
           {/* Smart Water Management */}
-          <section className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-            <h2 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
-              <Droplets className="w-5 h-5 text-blue-500" /> Smart Water Management
-            </h2>
-            <div className="flex flex-col md:flex-row gap-6">
-              <div className="flex-1 space-y-4">
-                <div>
-                  <div className="flex justify-between items-end mb-2">
-                    <p className="text-xs font-bold text-slate-500 uppercase">Soil Moisture</p>
-                    <p className="text-2xl font-black text-blue-600">{water.soilMoisture}%</p>
-                  </div>
-                  <div className="h-3 w-full bg-gray-100 rounded-full overflow-hidden flex">
-                    <div className="h-full bg-orange-400" style={{width: '30%'}}></div>
-                    <div className="h-full bg-green-500" style={{width: '50%'}}></div>
-                    <div className="h-full bg-blue-500" style={{width: '20%'}}></div>
-                  </div>
-                  <div className="flex justify-between mt-1 text-[9px] font-bold text-slate-400 uppercase">
-                    <span>Dry</span>
-                    <span>Optimal</span>
-                    <span>Saturated</span>
-                  </div>
-                </div>
-                
-                <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
-                  <p className="text-xs font-bold text-blue-800 mb-1">Vani's Irrigation Advice:</p>
-                  <p className="text-sm font-medium text-blue-900 leading-relaxed">{water.aiReasoning}</p>
-                </div>
-              </div>
-
-              <div className="flex-1 grid grid-cols-2 gap-3">
-                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Next Schedule</p>
-                  <p className="text-sm font-black text-slate-800 flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-blue-500"/> {water.nextSchedule}</p>
-                </div>
-                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Method</p>
-                  <p className="text-sm font-black text-slate-800 flex items-center gap-1"><Droplet className="w-3.5 h-3.5 text-blue-500"/> {water.method}</p>
-                </div>
-                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Water Source</p>
-                  <p className="text-sm font-black text-slate-800 flex items-center gap-1"><Zap className="w-3.5 h-3.5 text-blue-500"/> {water.source}</p>
-                </div>
-                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Usage (7 Days)</p>
-                  <p className="text-sm font-black text-slate-800 flex items-center gap-1"><Activity className="w-3.5 h-3.5 text-blue-500"/> {water.usageWeek}</p>
-                </div>
-              </div>
+          <div className="relative">
+            <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px] z-10 flex items-center justify-center rounded-3xl">
+              <span className="bg-amber-100 text-amber-800 text-sm font-semibold px-4 py-2 rounded-full border border-amber-300">🛰️ Satellite features coming soon</span>
             </div>
-          </section>
+            <section className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+              <h2 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
+                <Droplets className="w-5 h-5 text-blue-500" /> Smart Water Management
+              </h2>
+              <div className="flex flex-col md:flex-row gap-6">
+                <div className="flex-1 space-y-4">
+                  <div>
+                    <div className="flex justify-between items-end mb-2">
+                      <p className="text-xs font-bold text-slate-500 uppercase">Soil Moisture</p>
+                      <p className="text-2xl font-black text-blue-600">{water.soilMoisture}%</p>
+                    </div>
+                    <div className="h-3 w-full bg-gray-100 rounded-full overflow-hidden flex">
+                      <div className="h-full bg-orange-400" style={{width: '30%'}}></div>
+                      <div className="h-full bg-green-500" style={{width: '50%'}}></div>
+                      <div className="h-full bg-blue-500" style={{width: '20%'}}></div>
+                    </div>
+                    <div className="flex justify-between mt-1 text-[9px] font-bold text-slate-400 uppercase">
+                      <span>Dry</span>
+                      <span>Optimal</span>
+                      <span>Saturated</span>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
+                    <p className="text-xs font-bold text-blue-800 mb-1">Vani's Irrigation Advice:</p>
+                    <p className="text-sm font-medium text-blue-900 leading-relaxed">{water.aiReasoning}</p>
+                  </div>
+                </div>
+
+                <div className="flex-1 grid grid-cols-2 gap-3">
+                  <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Next Schedule</p>
+                    <p className="text-sm font-black text-slate-800 flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-blue-500"/> {water.nextSchedule}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Method</p>
+                    <p className="text-sm font-black text-slate-800 flex items-center gap-1"><Droplet className="w-3.5 h-3.5 text-blue-500"/> {water.method}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Water Source</p>
+                    <p className="text-sm font-black text-slate-800 flex items-center gap-1"><Zap className="w-3.5 h-3.5 text-blue-500"/> {water.source}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Usage (7 Days)</p>
+                    <p className="text-sm font-black text-slate-800 flex items-center gap-1"><Activity className="w-3.5 h-3.5 text-blue-500"/> {water.usageWeek}</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
 
         </div>
 

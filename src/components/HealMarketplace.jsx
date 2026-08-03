@@ -332,6 +332,11 @@ export default function HealMarketplace({ onSpeak }) {
         {/* --- SECTION 1: MARKET PRICES --- */}
         {activeSection === 'Market Prices' && (
           <div className="space-y-6 animate-fade-in">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-4 flex items-center gap-2 text-blue-800 text-sm">
+              <span>ℹ️</span>
+              <span><strong>Market prices are indicative only.</strong> Live mandi integration (Data.gov.in) is not yet active. Do not use these values for trading decisions.</span>
+            </div>
+
             {/* Top Crop Prices */}
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
               <div className="flex justify-between items-center mb-4">
