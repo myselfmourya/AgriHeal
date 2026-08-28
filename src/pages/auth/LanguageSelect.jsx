@@ -25,7 +25,8 @@ export default function LanguageSelect() {
 
   const handleContinue = () => {
     localStorage.setItem('ah-lang', selectedLang);
-    navigate('/welcome');
+    document.cookie = `googtrans=/en/${selectedLang}; path=/;`;
+    window.location.href = '/welcome'; // Hard reload so Google Translate initializes
   };
 
   return (

@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Navigation, ArrowRight, Sprout, Droplets, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, MapPin, User, ArrowRight, Sprout, CheckCircle2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
-import { useFarmer } from '../../contexts/FarmerContext';
+import { supabase } from '../../lib/supabase';
 
-const SOIL_TYPES = ['Black Soil', 'Red Soil', 'Alluvial Soil', 'Laterite Soil', 'Sandy Soil'];
-const IRRIGATION_TYPES = ['Rainfed', 'Borewell', 'Canal', 'Drip', 'Sprinkler'];
 const COMMON_CROPS = [
   { id: 'c1', name: 'Paddy', emoji: '🌾' },
   { id: 'c2', name: 'Cotton', emoji: '☁️' },
@@ -19,55 +17,109 @@ const COMMON_CROPS = [
   { id: 'c9', name: 'Soybean', emoji: '🌱' },
 ];
 
+const COMMON_LIVESTOCK = [
+  { id: 'l1', species: 'Cow', emoji: '🐄' },
+  { id: 'l2', species: 'Buffalo', emoji: '🐃' },
+  { id: 'l3', species: 'Goat', emoji: '🐐' },
+  { id: 'l4', species: 'Sheep', emoji: '🐑' },
+  { id: 'l5', species: 'Chicken', emoji: '🐔' },
+];
+
 export default function ProfileSetup() {
   const [step, setStep] = useState(1);
   const navigate = useNavigate();
-  const { login } = useAuth();
-  const { updateProfile, addMyCrop } = useFarmer();
+  const { completeOnboarding } = useAuth();
   const { t } = useTranslation();
+  const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
-    location: '',
+    fullName: '',
+    phone: '',
+    experience: '',
+    village: '',
     district: '',
-    landSize: '',
-    soilType: '',
-    irrigation: '',
-    selectedCrops: []
+    state: '',
+    farmSize: '',
+    selectedCrops: [],
+    selectedLivestock: {} // { 'l1': 5, 'l3': 10 }
   });
 
-  const handleComplete = () => {
-    // 1. Update Profile
-    updateProfile({
-      location: `${formData.location}, ${formData.district}`,
-      landSize: formData.landSize,
-      soilType: formData.soilType,
-      irrigation: formData.irrigation
-    });
+  const handleComplete = async () => {
+    setLoading(true);
+    try {
+      // 1. Get current authenticated user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error("User not found or not authenticated");
 
-    // 2. Add Selected Crops to Context
-    formData.selectedCrops.forEach(cropId => {
-      const cropDef = COMMON_CROPS.find(c => c.id === cropId);
-      if (cropDef) {
-        addMyCrop({
-          name: cropDef.name,
-          emoji: cropDef.emoji,
-          area: Number(formData.landSize) || 1, // Distribute area or use default
-          variety: 'Standard',
-          stage: 'Sowing',
-          health: 100,
-          progress: 0,
-          calendar: []
+      // 2. Insert/Update Farmer Profile linked to Auth User ID
+      const { data: farmer, error: farmerError } = await supabase
+        .from('farmers')
+        .upsert({
+          id: user.id, // Link profile directly to auth user
+          full_name: formData.fullName || 'New Farmer',
+          phone: formData.phone || null,
+          village: formData.village || null,
+          district: formData.district || null,
+          state: formData.state || null,
+          experience_years: parseInt(formData.experience) || 0,
+          farm_size_acres: parseFloat(formData.farmSize) || 0
+        })
+        .select()
+        .single();
+
+      if (farmerError) throw farmerError;
+
+      // 2. Insert Crops
+      if (formData.selectedCrops.length > 0 && farmer) {
+        const cropsToInsert = formData.selectedCrops.map(cropId => {
+          const cropDef = COMMON_CROPS.find(c => c.id === cropId);
+          return {
+            farmer_id: farmer.id,
+            name: cropDef.name,
+            emoji: cropDef.emoji,
+            area_acres: (parseFloat(formData.farmSize) / formData.selectedCrops.length) || 1,
+            stage: 'Sowing',
+            health_score: 100,
+            days_since_sowing: 0
+          };
         });
+        const { error: cropError } = await supabase.from('crops').insert(cropsToInsert);
+        if (cropError) throw cropError;
       }
-    });
 
-    // 3. Mark as logged in and redirect to home
-    login();
-    navigate('/home');
+      // 3. Insert Livestock
+      const livestockEntries = Object.entries(formData.selectedLivestock);
+      if (livestockEntries.length > 0 && farmer) {
+        const livestockToInsert = livestockEntries.map(([lId, count]) => {
+          const lDef = COMMON_LIVESTOCK.find(l => l.id === lId);
+          return {
+            farmer_id: farmer.id,
+            species: lDef.species,
+            head_count: count,
+            health_status: 'Healthy',
+            average_temp: 38.5 // Default normal temp
+          };
+        });
+        const { error: liveError } = await supabase.from('livestock').insert(livestockToInsert);
+        if (liveError) throw liveError;
+      }
+
+      // 4. Mark as done and redirect to home
+      localStorage.setItem('ah-farmer-id', farmer?.id);
+      completeOnboarding();
+      navigate('/home');
+
+    } catch (err) {
+      console.error('Error in onboarding:', err);
+      const msg = err?.message || JSON.stringify(err) || 'Unknown error';
+      alert('Error creating profile: ' + msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const nextStep = () => {
-    if (step < 3) setStep(s => s + 1);
+    if (step < 4) setStep(s => s + 1);
     else handleComplete();
   };
 
@@ -84,6 +136,17 @@ export default function ProfileSetup() {
     }));
   };
 
+  const updateLivestockCount = (id, amount) => {
+    setFormData(prev => {
+      const current = prev.selectedLivestock[id] || 0;
+      const next = Math.max(0, current + amount);
+      const newLive = { ...prev.selectedLivestock };
+      if (next === 0) delete newLive[id];
+      else newLive[id] = next;
+      return { ...prev, selectedLivestock: newLive };
+    });
+  };
+
   return (
     <div className="flex flex-col h-[100dvh] lg:h-screen bg-[#FDFCF7]">
       {/* Header */}
@@ -97,160 +160,191 @@ export default function ProfileSetup() {
           </button>
         )}
         
-        {/* Progress bar */}
         <div className="flex gap-2 mb-6 mt-2">
-          {[1, 2, 3].map(i => (
+          {[1, 2, 3, 4].map(i => (
             <div key={i} className={`h-1.5 rounded-full flex-1 transition-colors ${step >= i ? 'bg-green-600' : 'bg-green-100'}`} />
           ))}
         </div>
 
         <h1 className="text-3xl font-black text-slate-800 tracking-tight mb-2">
-          {step === 1 && t('where_is_your_farm', 'Where is your farm?')}
-          {step === 2 && t('farm_details', 'Farm Details')}
-          {step === 3 && t('what_do_you_grow', 'What do you grow?')}
+          {step === 1 && 'Personal Info'}
+          {step === 2 && 'Location Details'}
+          {step === 3 && 'Farm & Crops'}
+          {step === 4 && 'Livestock (Optional)'}
         </h1>
         <p className="text-slate-500 font-medium">
-          {step === 1 && t('farm_location_desc', 'This helps us provide accurate weather and market prices.')}
-          {step === 2 && t('farm_details_desc', 'This helps AI give you precise fertilizer and care advice.')}
-          {step === 3 && t('crop_selection_desc', 'Select all crops you are currently growing.')}
+          {step === 1 && 'Help us personalize your AgriHeal experience.'}
+          {step === 2 && 'For accurate weather, markets, and schemes.'}
+          {step === 3 && 'To give you precise crop care advice.'}
+          {step === 4 && 'Do you own any animals?'}
         </p>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 pt-4 pb-32 lg:max-w-xl mx-auto w-full">
         
-        {/* STEP 1: LOCATION */}
+        {/* STEP 1: PERSONAL INFO */}
         {step === 1 && (
-          <div className="space-y-5 animate-fade-in">
-            <button className="w-full flex items-center justify-center gap-2 bg-green-50 text-green-700 font-bold py-4 rounded-2xl border border-green-200 hover:bg-green-100 transition-colors">
-              <Navigation className="w-5 h-5" />
-              {t('use_current_location', 'Use Current Location')}
-            </button>
-            
-            <div className="flex items-center gap-4 my-2">
-              <div className="flex-1 h-px bg-gray-200" />
-              <span className="text-xs font-bold text-slate-400">{t('or_enter_manually', 'OR ENTER MANUALLY')}</span>
-              <div className="flex-1 h-px bg-gray-200" />
+          <div className="space-y-4 animate-fade-in">
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-slate-700 ml-1">Full Name</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <User className="w-5 h-5 text-slate-400" />
+                </div>
+                <input 
+                  type="text" 
+                  value={formData.fullName}
+                  onChange={e => setFormData({...formData, fullName: e.target.value})}
+                  className="w-full bg-white border-2 border-gray-100 rounded-2xl py-3.5 pl-11 pr-4 focus:outline-none focus:border-green-500 font-medium text-slate-800"
+                  placeholder="e.g. Ramesh Kumar"
+                />
+              </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm font-bold text-slate-700 ml-1">{t('village_town', 'Village / Town')}</label>
+              <label className="text-sm font-bold text-slate-700 ml-1">Phone Number</label>
+              <input 
+                type="tel" 
+                value={formData.phone}
+                onChange={e => setFormData({...formData, phone: e.target.value})}
+                className="w-full bg-white border-2 border-gray-100 rounded-2xl py-3.5 px-4 focus:outline-none focus:border-green-500 font-medium text-slate-800"
+                placeholder="+91"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-slate-700 ml-1">Farming Experience (Years)</label>
+              <input 
+                type="number" 
+                value={formData.experience}
+                onChange={e => setFormData({...formData, experience: e.target.value})}
+                className="w-full bg-white border-2 border-gray-100 rounded-2xl py-3.5 px-4 focus:outline-none focus:border-green-500 font-medium text-slate-800"
+                placeholder="0"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2: LOCATION */}
+        {step === 2 && (
+          <div className="space-y-4 animate-fade-in">
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-slate-700 ml-1">Village / Town</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <MapPin className="w-5 h-5 text-slate-400" />
                 </div>
                 <input 
                   type="text" 
-                  value={formData.location}
-                  onChange={e => setFormData({...formData, location: e.target.value})}
-                  className="w-full bg-white border-2 border-gray-100 rounded-2xl py-3.5 pl-11 pr-4 focus:outline-none focus:border-green-500 focus:ring-4 focus:ring-green-500/10 font-medium text-slate-800"
-                  placeholder={t('eg_palampur', 'e.g. Palampur')}
+                  value={formData.village}
+                  onChange={e => setFormData({...formData, village: e.target.value})}
+                  className="w-full bg-white border-2 border-gray-100 rounded-2xl py-3.5 pl-11 pr-4 focus:outline-none focus:border-green-500 font-medium text-slate-800"
+                  placeholder="e.g. Palampur"
                 />
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-sm font-bold text-slate-700 ml-1">{t('district_state', 'District / State')}</label>
-              <input 
-                type="text" 
-                value={formData.district}
-                onChange={e => setFormData({...formData, district: e.target.value})}
-                className="w-full bg-white border-2 border-gray-100 rounded-2xl py-3.5 px-4 focus:outline-none focus:border-green-500 focus:ring-4 focus:ring-green-500/10 font-medium text-slate-800"
-                placeholder={t('eg_kangra', 'e.g. Kangra, Himachal Pradesh')}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* STEP 2: FARM DETAILS */}
-        {step === 2 && (
-          <div className="space-y-6 animate-fade-in">
-            
-            <div className="space-y-1">
-              <label className="text-sm font-bold text-slate-700 ml-1">{t('total_land_size', 'Total Land Size (Acres)')}</label>
-              <div className="relative">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-sm font-bold text-slate-700 ml-1">District</label>
                 <input 
-                  type="number" 
-                  value={formData.landSize}
-                  onChange={e => setFormData({...formData, landSize: e.target.value})}
-                  className="w-full bg-white border-2 border-gray-100 rounded-2xl py-3.5 pl-4 pr-16 focus:outline-none focus:border-green-500 focus:ring-4 focus:ring-green-500/10 font-medium text-slate-800 text-lg"
-                  placeholder="0.0"
+                  type="text" 
+                  value={formData.district}
+                  onChange={e => setFormData({...formData, district: e.target.value})}
+                  className="w-full bg-white border-2 border-gray-100 rounded-2xl py-3.5 px-4 focus:outline-none focus:border-green-500 font-medium text-slate-800"
+                  placeholder="e.g. Kangra"
                 />
-                <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
-                  <span className="text-slate-400 font-bold">{t('acres', 'Acres')}</span>
-                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-bold text-slate-700 ml-1">State</label>
+                <input 
+                  type="text" 
+                  value={formData.state}
+                  onChange={e => setFormData({...formData, state: e.target.value})}
+                  className="w-full bg-white border-2 border-gray-100 rounded-2xl py-3.5 px-4 focus:outline-none focus:border-green-500 font-medium text-slate-800"
+                  placeholder="e.g. HP"
+                />
               </div>
             </div>
-
-            <div className="space-y-3">
-              <label className="text-sm font-bold text-slate-700 ml-1 flex items-center gap-1.5"><Sprout className="w-4 h-4"/> {t('soil_type', 'Soil Type')}</label>
-              <div className="flex flex-wrap gap-2">
-                {SOIL_TYPES.map(soil => (
-                  <button
-                    key={soil}
-                    onClick={() => setFormData({...formData, soilType: soil})}
-                    className={`px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${
-                      formData.soilType === soil 
-                        ? 'border-green-600 bg-green-50 text-green-700' 
-                        : 'border-gray-100 bg-white text-slate-600 hover:border-green-200'
-                    }`}
-                  >
-                    {t(`soil_${soil.replace(' ', '_').toLowerCase()}`, soil)}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <label className="text-sm font-bold text-slate-700 ml-1 flex items-center gap-1.5"><Droplets className="w-4 h-4"/> {t('irrigation_source', 'Irrigation Source')}</label>
-              <div className="flex flex-wrap gap-2">
-                {IRRIGATION_TYPES.map(irr => (
-                  <button
-                    key={irr}
-                    onClick={() => setFormData({...formData, irrigation: irr})}
-                    className={`px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${
-                      formData.irrigation === irr 
-                        ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                        : 'border-gray-100 bg-white text-slate-600 hover:border-blue-200'
-                    }`}
-                  >
-                    {t(`irrigation_${irr.toLowerCase()}`, irr)}
-                  </button>
-                ))}
-              </div>
-            </div>
-
           </div>
         )}
 
         {/* STEP 3: CROP SELECTION */}
         {step === 3 && (
-          <div className="animate-fade-in">
-            <div className="grid grid-cols-2 gap-3">
-              {COMMON_CROPS.map(crop => {
-                const isSelected = formData.selectedCrops.includes(crop.id);
-                return (
-                  <div
-                    key={crop.id}
-                    onClick={() => toggleCrop(crop.id)}
-                    className={`relative flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all cursor-pointer h-32 ${
-                      isSelected 
-                        ? 'border-green-600 bg-green-50/50 shadow-sm' 
-                        : 'border-gray-100 bg-white hover:border-green-200 hover:shadow-sm'
-                    }`}
-                  >
-                    {isSelected && (
-                      <div className="absolute top-2 right-2 text-green-600">
-                        <CheckCircle2 className="w-5 h-5 fill-white" />
-                      </div>
-                    )}
-                    <span className="text-4xl mb-2 filter drop-shadow-sm">{crop.emoji}</span>
-                    <span className={`font-bold text-sm text-center ${isSelected ? 'text-green-800' : 'text-slate-700'}`}>
-                      {t(`crop_${crop.name.toLowerCase()}`, crop.name)}
-                    </span>
-                  </div>
-                );
-              })}
+          <div className="space-y-6 animate-fade-in">
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-slate-700 ml-1">Total Land Size (Acres)</label>
+              <div className="relative">
+                <input 
+                  type="number" 
+                  value={formData.farmSize}
+                  onChange={e => setFormData({...formData, farmSize: e.target.value})}
+                  className="w-full bg-white border-2 border-gray-100 rounded-2xl py-3.5 pl-4 pr-16 focus:outline-none focus:border-green-500 font-medium text-slate-800 text-lg"
+                  placeholder="0.0"
+                />
+                <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
+                  <span className="text-slate-400 font-bold">Acres</span>
+                </div>
+              </div>
             </div>
+            
+            <div>
+              <label className="text-sm font-bold text-slate-700 ml-1 mb-2 block">Select your crops</label>
+              <div className="grid grid-cols-3 gap-3">
+                {COMMON_CROPS.map(crop => {
+                  const isSelected = formData.selectedCrops.includes(crop.id);
+                  return (
+                    <div
+                      key={crop.id}
+                      onClick={() => toggleCrop(crop.id)}
+                      className={`relative flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all cursor-pointer h-28 ${
+                        isSelected 
+                          ? 'border-green-600 bg-green-50/50 shadow-sm' 
+                          : 'border-gray-100 bg-white hover:border-green-200 hover:shadow-sm'
+                      }`}
+                    >
+                      {isSelected && (
+                        <div className="absolute top-1 right-1 text-green-600">
+                          <CheckCircle2 className="w-4 h-4 fill-white" />
+                        </div>
+                      )}
+                      <span className="text-3xl mb-1 filter drop-shadow-sm">{crop.emoji}</span>
+                      <span className={`font-bold text-xs text-center ${isSelected ? 'text-green-800' : 'text-slate-700'}`}>
+                        {crop.name}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 4: LIVESTOCK */}
+        {step === 4 && (
+          <div className="animate-fade-in space-y-4">
+            {COMMON_LIVESTOCK.map(live => {
+              const count = formData.selectedLivestock[live.id] || 0;
+              return (
+                <div key={live.id} className="flex items-center justify-between p-4 bg-white border-2 border-gray-100 rounded-2xl">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">{live.emoji}</span>
+                    <span className="font-bold text-slate-800">{live.species}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => updateLivestockCount(live.id, -1)}
+                      className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-600 font-bold text-lg hover:bg-slate-200"
+                    >-</button>
+                    <span className="w-4 text-center font-bold text-slate-800">{count}</span>
+                    <button 
+                      onClick={() => updateLivestockCount(live.id, 1)}
+                      className="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 text-green-700 font-bold text-lg hover:bg-green-200"
+                    >+</button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -260,11 +354,12 @@ export default function ProfileSetup() {
       <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#FDFCF7] via-[#FDFCF7] to-transparent pt-12 flex justify-center pointer-events-none">
         <div className="w-full lg:max-w-xl pointer-events-auto">
           <button 
+            disabled={loading}
             onClick={nextStep}
-            className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-green-600 text-white font-bold text-lg shadow-lg shadow-green-600/30 hover:bg-green-700 active:scale-[0.98] transition-all"
+            className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-green-600 text-white font-bold text-lg shadow-lg shadow-green-600/30 hover:bg-green-700 active:scale-[0.98] transition-all disabled:opacity-50"
           >
-            {step < 3 ? t('continue', 'Continue') : t('finish_setup', 'Finish Setup')}
-            {step < 3 && <ArrowRight className="w-5 h-5" />}
+            {loading ? 'Saving...' : (step < 4 ? 'Continue' : 'Finish Setup')}
+            {!loading && step < 4 && <ArrowRight className="w-5 h-5" />}
           </button>
         </div>
       </div>

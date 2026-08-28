@@ -197,7 +197,9 @@ export default function Notifications() {
   });
 
   return (
-    <div className="w-full max-w-5xl mx-auto pb-32 pt-6 space-y-6 px-4 md:px-8">
+    <div className="page-content px-4 md:px-8 pt-6 w-full min-h-screen">
+      <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 min-h-[calc(100vh-120px)] flex flex-col overflow-hidden relative mb-10 p-6 md:p-10">
+        <div className="w-full max-w-5xl mx-auto pb-32 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <div>
@@ -489,6 +491,8 @@ export default function Notifications() {
           </div>
         )}
       </AnimatePresence>
+        </div>
+      </div>
     </div>
   );
 }

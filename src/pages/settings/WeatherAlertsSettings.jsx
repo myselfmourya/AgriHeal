@@ -11,8 +11,8 @@ export default function WeatherAlertsSettings() {
       <div className="flex items-center gap-3">
         {icon && <span className="text-xl">{icon}</span>}
         <div className="flex flex-col">
-          <span className="text-zinc-900  font-bold">{label}</span>
-          {subtitle && <span className="text-zinc-500  text-xs">{subtitle}</span>}
+          <span className="text-gray-900  font-bold">{label}</span>
+          {subtitle && <span className="text-gray-400  text-xs">{subtitle}</span>}
         </div>
       </div>
       <button 

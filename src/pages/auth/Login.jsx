@@ -8,14 +8,35 @@ import { useTranslation } from 'react-i18next';
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, loginWithGoogle, loginWithFacebook } = useAuth();
   const { t } = useTranslation();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    login();
-    navigate('/home');
+    setError(null);
+    setLoading(true);
+    try {
+      await login(email, password);
+      navigate('/home');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      await loginWithGoogle();
+      // Supabase OAuth handles redirect, so we don't navigate immediately.
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   return (
@@ -40,7 +61,7 @@ export default function Login() {
         <div className="w-full max-w-sm mx-auto flex flex-col min-h-full">
           
           {/* Header */}
-          <div className="pt-12 px-6 pb-8">
+          <div className="pt-12 px-6 pb-4">
             <button 
               onClick={() => navigate(-1)}
               className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 mb-6 -ml-2 transition-colors"
@@ -50,6 +71,12 @@ export default function Login() {
             <h1 className="text-3xl font-black text-slate-800 tracking-tight mb-2">{t('login')}</h1>
             <p className="text-sm text-slate-500 font-medium">{t('login_subtitle')}</p>
           </div>
+
+          {error && (
+            <div className="mx-6 mb-4 p-3 bg-red-50 text-red-600 border border-red-100 rounded-lg text-sm font-medium">
+              {error}
+            </div>
+          )}
 
           {/* Form */}
           <div className="flex-1 px-6 pb-6">
@@ -63,6 +90,8 @@ export default function Login() {
                   </div>
                   <input 
                     type="text" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="w-full bg-white border border-gray-200 rounded-2xl py-3.5 pl-12 pr-4 focus:outline-none focus:border-green-500 focus:ring-4 focus:ring-green-500/10 transition-all font-medium text-slate-800 placeholder:text-slate-400 text-[15px]"
                     placeholder={t('enter_email_phone')}
                     required
@@ -78,6 +107,8 @@ export default function Login() {
                   </div>
                   <input 
                     type={showPassword ? "text" : "password"} 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     className="w-full bg-white border border-gray-200 rounded-2xl py-3.5 pl-12 pr-12 focus:outline-none focus:border-green-500 focus:ring-4 focus:ring-green-500/10 transition-all font-medium text-slate-800 placeholder:text-slate-400 text-[15px]"
                     placeholder={t('enter_password')}
                     required
@@ -115,9 +146,10 @@ export default function Login() {
 
               <button 
                 type="submit"
-                className="w-full py-4 mt-8 rounded-full bg-green-600 text-white font-bold text-lg shadow-[0_8px_20px_rgba(22,163,74,0.3)] hover:bg-green-700 active:scale-[0.98] transition-all"
+                disabled={loading}
+                className="w-full py-4 mt-8 rounded-full bg-green-600 text-white font-bold text-lg shadow-[0_8px_20px_rgba(22,163,74,0.3)] hover:bg-green-700 active:scale-[0.98] transition-all disabled:opacity-70"
               >
-                {t('login')}
+                {loading ? 'Logging in...' : t('login')}
               </button>
             </form>
 
@@ -129,11 +161,25 @@ export default function Login() {
               </div>
 
               <div className="grid grid-cols-2 gap-4 mt-4">
-                <button className="flex items-center justify-center gap-2 py-3.5 bg-white border border-gray-200 rounded-full hover:border-gray-300 hover:bg-gray-50 transition-all font-bold text-sm text-slate-700">
+                <button 
+                  onClick={handleGoogleLogin} 
+                  type="button" 
+                  className="flex items-center justify-center gap-2 py-3.5 bg-white border border-gray-200 rounded-full hover:border-gray-300 hover:bg-gray-50 transition-all font-bold text-sm text-slate-700"
+                >
                   <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
                   Google
                 </button>
-                <button className="flex items-center justify-center gap-2 py-3.5 bg-white border border-gray-200 rounded-full hover:border-gray-300 hover:bg-gray-50 transition-all font-bold text-sm text-slate-700">
+                <button 
+                  onClick={async () => {
+                    try {
+                      await loginWithFacebook();
+                    } catch (error) {
+                      setError(error.message || "Facebook login failed");
+                    }
+                  }} 
+                  type="button"
+                  className="flex items-center justify-center gap-2 py-3.5 bg-white border border-gray-200 rounded-full hover:border-gray-300 hover:bg-gray-50 transition-all font-bold text-sm text-slate-700"
+                >
                   <img src="https://www.svgrepo.com/show/475647/facebook-color.svg" alt="Facebook" className="w-5 h-5" />
                   Facebook
                 </button>

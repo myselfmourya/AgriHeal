@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { X, Send, Leaf } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 export default function VaniOverlay({ onClose }) {
   const [messages, setMessages] = useState([
@@ -8,21 +9,37 @@ export default function VaniOverlay({ onClose }) {
   ])
   const [input, setInput] = useState('')
   const chatEndRef = useRef(null)
+  const navigate = useNavigate();
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return
     const userText = input.trim()
     setMessages(prev => [...prev, { sender: 'user', text: userText }])
     setInput('')
 
-    // Simulated response
-    setTimeout(() => {
-      setMessages(prev => [...prev, { sender: 'ai', text: 'I am processing your question. Our voice navigation and advanced AI logic will be fully integrated soon!' }])
-    }, 1000)
+    try {
+      const { generateStructuredResponse } = await import('../services/aiProvider');
+      const historyText = messages.slice(-3).map(m => `${m.sender === 'user' ? 'User' : 'Vani'}: ${m.text}`).join('\n');
+      const prompt = `Context:\n${historyText}\nUser: ${userText}\n\nProvide a very short, helpful agricultural response (under 2 sentences). Determine if the user wants to navigate to a page.`;
+      
+      const schemaDescription = `{ "responseText": "Your reply", "action": "navigate" | "none", "payload": "if action is navigate, specify route path, e.g., '/', '/news', '/crop', '/weather', '/settings', '/documents', '/market', '/community'" }`;
+      
+      const aiData = await generateStructuredResponse(prompt, schemaDescription);
+      setMessages(prev => [...prev, { sender: 'ai', text: aiData.responseText || 'I did not understand that.' }]);
+      
+      if (aiData.action === 'navigate' && aiData.payload) {
+         if (onClose) onClose();
+         navigate(aiData.payload);
+      }
+
+    } catch (err) {
+      console.error(err);
+      setMessages(prev => [...prev, { sender: 'ai', text: 'Sorry, I am having trouble connecting to my brain right now.' }]);
+    }
   }
 
   return (

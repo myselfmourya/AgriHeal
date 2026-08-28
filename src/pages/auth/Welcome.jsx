@@ -4,6 +4,7 @@ import { Leaf, Mic, Stethoscope } from 'lucide-react';
 import { MdOutlineCurrencyRupee } from 'react-icons/md';
 import { FcGoogle } from 'react-icons/fc';
 import { FaFacebook } from 'react-icons/fa';
+import { useAuth } from '../../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { useVani } from '../../contexts/VaniContext';
 
@@ -11,6 +12,7 @@ export default function Welcome() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { isVoiceModeEnabled, toggleVoiceMode } = useVani();
+  const { loginWithGoogle, loginWithFacebook } = useAuth();
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-[#FDFCF7] overflow-hidden">
@@ -87,10 +89,10 @@ export default function Welcome() {
             </div>
 
             <div className="flex gap-3 w-full">
-              <button className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-gray-100 bg-white hover:bg-gray-50 transition-colors font-semibold text-slate-700">
+              <button onClick={async () => { try { await loginWithGoogle(); } catch (e) { console.error(e); } }} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-gray-100 bg-white hover:bg-gray-50 transition-colors font-semibold text-slate-700">
                 <FcGoogle className="w-5 h-5" /> Google
               </button>
-              <button className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-gray-100 bg-white hover:bg-gray-50 transition-colors font-semibold text-slate-700">
+              <button onClick={async () => { try { await loginWithFacebook(); } catch (e) { console.error(e); } }} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-gray-100 bg-white hover:bg-gray-50 transition-colors font-semibold text-slate-700">
                 <FaFacebook className="w-5 h-5 text-blue-600" /> Facebook
               </button>
             </div>

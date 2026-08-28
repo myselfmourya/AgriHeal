@@ -1,15 +1,59 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Filter, Search } from 'lucide-react';
 import PostCard from './PostCard';
 import { MOCK_POSTS } from './communityData';
+import { supabase } from '../../lib/supabase';
 
 export default function CommunityFeed() {
   const [filter, setFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const categories = ['All', 'Crop Care', 'Pest & Disease', 'Farming Tip', 'Success Story', 'Question'];
 
-  const filteredPosts = MOCK_POSTS.filter(post => {
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('community_posts')
+          .select(`
+            *,
+            farmers(full_name, village)
+          `)
+          .order('created_at', { ascending: false });
+        
+        if (data && data.length > 0) {
+          const mappedPosts = data.map(post => ({
+            id: post.id,
+            author: post.farmers?.full_name || 'Anonymous',
+            village: post.farmers?.village || 'Unknown',
+            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.farmers?.full_name || 'A'}`,
+            time: new Date(post.created_at).toLocaleDateString(),
+            type: post.type || 'question',
+            category: post.category || 'General',
+            crop: post.crop || 'General',
+            content: post.content,
+            images: post.images || [],
+            likes: post.likes || 0,
+            comments: [],
+            shares: post.shares || 0
+          }));
+          setPosts(mappedPosts);
+        } else {
+          setPosts(MOCK_POSTS);
+        }
+      } catch (err) {
+        console.error("Error fetching community posts:", err);
+        setPosts(MOCK_POSTS);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPosts();
+  }, []);
+
+  const filteredPosts = posts.filter(post => {
     const matchesFilter = filter === 'All' || post.category === filter;
     const matchesSearch = post.content.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           post.author.toLowerCase().includes(searchQuery.toLowerCase()) ||

@@ -9,8 +9,8 @@ export default function DataStorageSettings() {
   const Toggle = ({ label, checked, onChange, subtitle }) => (
     <div className="flex justify-between items-center py-3">
       <div className="flex flex-col">
-        <span className="text-zinc-900  font-bold">{label}</span>
-        {subtitle && <span className="text-zinc-500  text-xs">{subtitle}</span>}
+        <span className="text-gray-900  font-bold">{label}</span>
+        {subtitle && <span className="text-gray-400  text-xs">{subtitle}</span>}
       </div>
       <button 
         onClick={() => onChange(!checked)}
@@ -53,8 +53,7 @@ export default function DataStorageSettings() {
             <span className="text-xs text-gray-500">Local Cache: 156MB</span>
           </div>
           <div className="text-right">
-            <button className="text-sm font-bold text-gray-600 bg-gray-100  px-3 py-1 rounded-lg">Clear Cache</button>
-            <p className="text-xs text-amber-600 mt-1">⚠️ Cloud backup integration is coming soon.</p>
+            <button className="text-sm font-bold text-slate-600 bg-slate-50  px-3 py-1 rounded-lg">Clear Cache</button>
           </div>
         </div>
 

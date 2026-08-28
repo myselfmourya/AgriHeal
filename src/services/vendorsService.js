@@ -1,11 +1,6 @@
-/**
- * Service for Local Vendors & Markets
- */
-
 import { supabase } from '../lib/supabase';
 
 const generateFallbackVendors = (lat, lon) => {
-  // Add some small random offsets to simulate nearby vendors (0.01 to 0.05 degrees is roughly 1-5km)
   const offset1 = (Math.random() - 0.5) * 0.04;
   const offset2 = (Math.random() - 0.5) * 0.04;
   const offset3 = (Math.random() - 0.5) * 0.04;
@@ -68,7 +63,6 @@ function processVendorsWithDistance(vendors, userLat, userLon) {
     }
     return vendor;
   }).sort((a, b) => {
-    // Sort by distance (parsing "2.5 km" float)
     const distA = parseFloat(a.distance);
     const distB = parseFloat(b.distance);
     if (!isNaN(distA) && !isNaN(distB)) return distA - distB;
@@ -79,31 +73,28 @@ function processVendorsWithDistance(vendors, userLat, userLon) {
 export const vendorsService = {
   getNearbyVendors: async (lat, lon) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        console.warn('Vendors Service: No active session, using fallback.');
-        return processVendorsWithDistance(generateFallbackVendors(lat, lon), lat, lon);
-      }
-
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/vendors-proxy?lat=${lat}&lon=${lon}`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
-      });
-
-      if (!response.ok) {
-         console.warn(`Vendor API failed with status ${response.status}, using fallback.`);
-         return processVendorsWithDistance(generateFallbackVendors(lat, lon), lat, lon);
+      const { data: vendorsData, error } = await supabase.from('vendors').select('*');
+      
+      if (error) throw error;
+      
+      if (vendorsData && vendorsData.length > 0) {
+        const mappedVendors = vendorsData.map(v => ({
+          id: v.id,
+          name: v.name,
+          category: v.category || 'General',
+          rating: v.rating || 4.0,
+          position: [v.latitude, v.longitude],
+          open: v.is_open,
+          phone: v.phone || '+91 00000 00000',
+          icon: v.icon || '🏪'
+        }));
+        return processVendorsWithDistance(mappedVendors, lat, lon);
       }
       
-      const result = await response.json();
-      const vendorsToProcess = result.vendors?.length ? result.vendors : generateFallbackVendors(lat, lon);
-      return processVendorsWithDistance(vendorsToProcess, lat, lon);
+      return processVendorsWithDistance(generateFallbackVendors(lat, lon), lat, lon);
     } catch (err) {
-      console.warn("Vendor fetch error:", err);
-      return processVendorsWithDistance(generateFallbackVendors(lat, lon), lat, lon); // Graceful fallback
+      console.error("Vendor fetch error:", err);
+      return processVendorsWithDistance(generateFallbackVendors(lat, lon), lat, lon);
     }
   }
 };

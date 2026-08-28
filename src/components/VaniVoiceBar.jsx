@@ -24,6 +24,19 @@ export default function VaniVoiceBar({ selectedDialect, onExecuteVoiceCommand, l
     utterance.lang = selectedDialect;
     utterance.rate = 0.95;
     
+    // Try to find a female voice
+    const voices = window.speechSynthesis.getVoices();
+    const isFemale = (name) => {
+      const n = name.toLowerCase();
+      return n.includes('female') || n.includes('woman') || ['samantha', 'zira', 'karen', 'victoria', 'tessa'].some(f => n.includes(f));
+    };
+    let femaleVoice = voices.find(v => v.lang === utterance.lang && isFemale(v.name));
+    if (!femaleVoice) femaleVoice = voices.find(v => v.lang.startsWith(utterance.lang.split('-')[0]) && isFemale(v.name));
+    if (!femaleVoice) femaleVoice = voices.find(v => v.lang.startsWith('en') && isFemale(v.name));
+    if (femaleVoice) {
+      utterance.voice = femaleVoice;
+    }
+    
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = () => setIsSpeaking(false);

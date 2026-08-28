@@ -7,6 +7,7 @@ import { FarmerProvider } from './contexts/FarmerContext'
 import { VaniProvider } from './contexts/VaniContext'
 import { NotificationProvider } from './contexts/NotificationContext'
 import { AuthProvider } from './contexts/AuthContext'
+import { WeatherProvider } from './contexts/WeatherContext'
 import App from './App'
 import './index.css'
 import './i18n'
@@ -30,9 +31,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <ThemeProvider>
             <FarmerProvider>
               <NotificationProvider>
-                <VaniProvider>
-                  <App />
-                </VaniProvider>
+                <WeatherProvider>
+                  <VaniProvider>
+                    <App />
+                  </VaniProvider>
+                </WeatherProvider>
               </NotificationProvider>
             </FarmerProvider>
           </ThemeProvider>

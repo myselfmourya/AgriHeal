@@ -17,12 +17,16 @@ export default function NotificationEngine() {
 
     const unlockAudio = () => {
       if (!audioUnlocked.current && audioRef.current) {
-        // Play and immediately pause to unlock the audio element for future programmatic playing
+        // Mute before unlocking to prevent split-second beep
+        audioRef.current.muted = true;
         audioRef.current.play().then(() => {
           audioRef.current.pause();
           audioRef.current.currentTime = 0;
+          audioRef.current.muted = false;
           audioUnlocked.current = true;
-        }).catch(() => {});
+        }).catch(() => {
+          audioRef.current.muted = false;
+        });
         document.removeEventListener('click', unlockAudio);
         document.removeEventListener('touchstart', unlockAudio);
       }

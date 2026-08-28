@@ -139,7 +139,7 @@ export default function ToolsStore() {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto pb-24 pt-6 space-y-8 px-4 md:px-8">
+    <div className="page-content px-4 md:px-8 pt-6 w-full min-h-screen space-y-8">
       
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

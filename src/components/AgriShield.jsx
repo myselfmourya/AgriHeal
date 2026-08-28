@@ -11,11 +11,15 @@ const MOCK_RESULTS = {
   organicAlternative: "Neem oil extract (2% solution) spray every 7 days.",
   weatherContext: "High humidity next 3 days will accelerate spread."
 };
+import { analyzeCropImage } from '../services/aiService';
 
 export default function AgriShield({ onSpeak }) {
   const [scanState, setScanState] = useState('idle'); // idle, scanning, results
   const [stream, setStream] = useState(null);
+  const [results, setResults] = useState(null);
+  const [errorMsg, setErrorMsg] = useState('');
   const videoRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   // Stop camera when unmounting
   useEffect(() => {
@@ -42,24 +46,54 @@ export default function AgriShield({ onSpeak }) {
     }
   };
 
+  const processImage = async (base64Data) => {
+    setScanState('scanning');
+    setErrorMsg('');
+    try {
+      // Analyze with AI
+      const aiResults = await analyzeCropImage(base64Data, "unknown plant", "en-IN");
+      setResults(aiResults);
+      setScanState('results');
+      if (onSpeak) {
+        onSpeak(`Scan complete. Detected ${aiResults.disease} with ${aiResults.confidence}% confidence. Critical action required: ${aiResults.action}`);
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg('Analysis failed. Please try again or check your API key.');
+      setScanState('idle');
+    }
+  };
+
   const handleCapture = () => {
+    if (!videoRef.current) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    const base64Image = canvas.toDataURL('image/jpeg');
+    
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
       setStream(null);
     }
-    setScanState('scanning');
-    
-    // Simulate AI analysis delay
-    setTimeout(() => {
-      setScanState('results');
-      if (onSpeak) {
-        onSpeak(`Scan complete. Detected ${MOCK_RESULTS.disease} with ${MOCK_RESULTS.confidence}% confidence. Critical action required: ${MOCK_RESULTS.action}`);
-      }
-    }, 2500);
+    processImage(base64Image);
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target.result;
+      processImage(base64);
+    };
+    reader.readAsDataURL(file);
   };
 
   const resetScan = () => {
     setScanState('idle');
+    setResults(null);
     setStream(null);
   };
 
@@ -178,7 +212,7 @@ export default function AgriShield({ onSpeak }) {
                     </button>
                   )}
                   
-                  <button style={{ 
+                  <label style={{ 
                     width: '100%', padding: '14px', borderRadius: '16px', 
                     backgroundColor: 'transparent', color: colors.emerald, 
                     border: `1px solid ${colors.emerald}`, fontSize: '16px', fontWeight: '600',
@@ -186,7 +220,20 @@ export default function AgriShield({ onSpeak }) {
                     marginTop: '12px', cursor: 'pointer'
                   }}>
                     <Upload size={20} /> Upload Photo
-                  </button>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      style={{ display: 'none' }} 
+                      ref={fileInputRef}
+                      onChange={handleFileUpload} 
+                    />
+                  </label>
+                  
+                  {errorMsg && (
+                    <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#fef2f2', color: '#991b1b', borderRadius: '12px', fontSize: '14px', textAlign: 'center', border: '1px solid #fecaca' }}>
+                      {errorMsg}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -227,7 +274,7 @@ export default function AgriShield({ onSpeak }) {
             </motion.div>
           )}
 
-          {scanState === 'results' && (
+          {scanState === 'results' && results && (
             <motion.div 
               key="results"
               initial={{ opacity: 0, y: 30 }}
@@ -238,10 +285,10 @@ export default function AgriShield({ onSpeak }) {
               <div style={{ backgroundColor: '#fef2f2', borderLeft: `6px solid #ef4444`, padding: '16px 20px', borderRadius: '12px', display: 'flex', gap: '16px', alignItems: 'flex-start', marginBottom: '20px', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.1)' }}>
                 <ShieldAlert size={28} color="#ef4444" style={{ marginTop: '2px' }} />
                 <div>
-                  <h3 style={{ margin: '0 0 4px 0', fontSize: '18px', color: '#991b1b' }}>{MOCK_RESULTS.disease}</h3>
+                  <h3 style={{ margin: '0 0 4px 0', fontSize: '18px', color: '#991b1b' }}>{results.disease}</h3>
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '14px', fontWeight: '600', color: '#b91c1c' }}>Severity: {MOCK_RESULTS.severity}</span>
-                    <span style={{ fontSize: '14px', fontWeight: '600', color: colors.emerald }}>{MOCK_RESULTS.confidence}% Match</span>
+                    <span style={{ fontSize: '14px', fontWeight: '600', color: '#b91c1c' }}>Severity: {results.severity}</span>
+                    <span style={{ fontSize: '14px', fontWeight: '600', color: colors.emerald }}>{results.confidence}% Match</span>
                   </div>
                 </div>
               </div>
@@ -254,12 +301,12 @@ export default function AgriShield({ onSpeak }) {
                 
                 <div style={{ marginBottom: '20px' }}>
                   <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '700', color: colors.earthBrown, marginBottom: '4px' }}>Immediate Treatment</div>
-                  <p style={{ margin: 0, fontSize: '15px', lineHeight: '1.5', color: colors.textDark }}>{MOCK_RESULTS.action}</p>
+                  <p style={{ margin: 0, fontSize: '15px', lineHeight: '1.5', color: colors.textDark }}>{results.action}</p>
                 </div>
                 
                 <div style={{ backgroundColor: colors.cream, padding: '16px', borderRadius: '12px', marginBottom: '20px' }}>
                   <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '700', color: colors.gold, marginBottom: '4px' }}>Organic Alternative</div>
-                  <p style={{ margin: 0, fontSize: '15px', lineHeight: '1.5', color: colors.textDark }}>{MOCK_RESULTS.organicAlternative}</p>
+                  <p style={{ margin: 0, fontSize: '15px', lineHeight: '1.5', color: colors.textDark }}>{results.organicAlternative}</p>
                 </div>
 
                 <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: '16px' }}>
@@ -267,7 +314,7 @@ export default function AgriShield({ onSpeak }) {
                     <div style={{ backgroundColor: '#e0f2fe', padding: '8px', borderRadius: '50%', color: '#0369a1' }}><Droplets size={16} /></div>
                     <div>
                       <div style={{ fontSize: '13px', fontWeight: '600', color: colors.textDark }}>Weather Context</div>
-                      <div style={{ fontSize: '13px', color: colors.textLight }}>{MOCK_RESULTS.weatherContext}</div>
+                      <div style={{ fontSize: '13px', color: colors.textLight }}>{results.weatherContext}</div>
                     </div>
                   </div>
                 </div>
@@ -287,7 +334,7 @@ export default function AgriShield({ onSpeak }) {
                 </button>
                 {onSpeak && (
                   <button 
-                    onClick={() => onSpeak(`Action required: ${MOCK_RESULTS.action}`)}
+                    onClick={() => onSpeak(`Action required: ${results.action}`)}
                     style={{ 
                       padding: '16px', borderRadius: '16px', 
                       backgroundColor: colors.surface, color: colors.emerald, 

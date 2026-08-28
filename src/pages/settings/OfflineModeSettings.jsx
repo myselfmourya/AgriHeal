@@ -8,8 +8,8 @@ export default function OfflineModeSettings() {
   const Toggle = ({ label, checked, onChange, subtitle }) => (
     <div className="flex justify-between items-center py-3">
       <div className="flex flex-col">
-        <span className="text-zinc-900  font-bold">{label}</span>
-        {subtitle && <span className="text-zinc-500  text-xs">{subtitle}</span>}
+        <span className="text-gray-900  font-bold">{label}</span>
+        {subtitle && <span className="text-gray-400  text-xs">{subtitle}</span>}
       </div>
       <button 
         onClick={() => onChange(!checked)}

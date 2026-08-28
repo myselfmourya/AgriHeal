@@ -1,15 +1,22 @@
 /**
- * VaniContext — AgriHeal Voice Assistant State
+ * VaniContext — Siri-like Voice Assistant
  *
- * Two voice modes:
- *  1. SIMPLE: Browser SpeechRecognition → ai-proxy Edge Function → browser TTS
- *     (light, no LiveKit, good for quick commands)
+ * Two-phase recognition:
+ *   Phase 1 (IDLE)      — background listening for "hey vani"
+ *   Phase 2 (ACTIVATED) — play beep, collect command, detect silence → process
  *
- *  2. LIVEKIT: Full real-time voice session with Gladia STT + Claude LLM + Cartesia TTS
- *     Triggered by startVaniSession({ intent }) from any component.
- *     AmbientVoiceOverlay handles the LiveKit room connection.
+ * "Change command mid-way" works because we only process on silence (500ms)
+ * or isFinal — whichever comes first. User can speak, pause, re-speak;
+ * the LAST thing said before 500ms silence is processed.
  *
- * All AI keys stay server-side. This file makes zero direct API calls.
+ * Noise-robustness improvements:
+ *   - maxAlternatives=3: checks all 3 hypotheses, not just the top guess.
+ *     In noisy / low-voice conditions the correct word often appears in alt #2 or #3.
+ *   - Expanded WAKE[] with 25+ real-world phonetic mis-recognitions.
+ *   - Minimum command length guard (≤2 chars → noise burst, skip).
+ *   - Silence timer reduced from 700ms → 500ms (eliminates perceived lag).
+ *   - Restart gap fixed: 0ms → 50ms prevents Chrome InvalidStateError on slow devices.
+ *   - Full NAV_MAP coverage for every app route + crop sub-pages + multi-language.
  */
 
 import React, {
@@ -18,18 +25,110 @@ import React, {
 } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { generateText } from '../services/aiProvider';
+import { generateVaniResponse } from '../services/aiService';
+import { getGlobalContext } from '../services/contextService';
 
-// ── Language config ────────────────────────────────────────────────────────
 export const LANGS = [
-  { code: 'hi', label: 'Hindi' },
   { code: 'en', label: 'English' },
+  { code: 'hi', label: 'Hindi' },
   { code: 'te', label: 'Telugu' },
   { code: 'ta', label: 'Tamil' },
   { code: 'mr', label: 'Marathi' },
 ];
 
 const LANG_BCP = { hi: 'hi-IN', te: 'te-IN', ta: 'ta-IN', mr: 'mr-IN', en: 'en-IN' };
+
+// ── Wake word variants ──────────────────────────────────────────────────────
+// Covers real-world phonetic mis-recognitions of "Hey Vani" in noisy,
+// accented, or low-volume speech across all supported languages.
+const WAKE = [
+  // Standard
+  'hey vani', 'ok vani', 'okay vani',
+  // Common mis-recognitions (English ASR noise)
+  'hey bani', 'hey wani', 'ey vani', 'hay vani',
+  'hey bonnie', 'hey bunny', 'hey nani', 'hey fanny',
+  'hey barni', 'hey boney', 'hey money', 'hey honey',
+  'hey banee', 'hey vanee', 'hey vonnie', 'a vani',
+  'vani', 'wani', 'bani',
+  // Hindi / Hinglish variants
+  'हे वाणी', 'हे वाणि', 'ओके वाणी', 'ओके वाणि',
+  // Telugu
+  'హే వాణి', 'ఓకే వాణి',
+  // Tamil
+  'ஹே வாணி', 'வாணி',
+  // Marathi
+  'हे वाणी',
+];
+
+// ── Navigation map ─────────────────────────────────────────────────────────
+// Every app route is covered. Keywords span English + Hindi + Telugu + Tamil + Marathi.
+// Sorted most-specific first to avoid shadowing.
+const NAV_MAP = [
+  // ── Crop sub-pages ───────────────────────────────────────────────────────
+  { route: '/crops',          keys: ['crop','crops','plant','farming','fasal','फसल','పంట','பயிர்','पीक'] },
+  { route: '/assistant',      keys: ['scan','disease','scanner','agrishield','leaf scan','crop scan','crop photo','disease check','image analysis','photo analysis','ai analysis','రోగ స్కాన్','పంట స్కాన్','நோய்','بیماری','agri shield', 'chat','assistant','ai chat','ai help','ask ai','smart chat','vani chat','सहायक','సహాయకుడు','உதவியாளர்','सहाय्यक'] },
+  { route: '/toxi',           keys: ['toxic','toxicity','poison','chemical','toxi','toxi guard','toxiguard','pesticide check','chemical risk','pesticide risk','కెమికల్','విషం','நச்சு','किटकनाशक'] },
+  { route: '/nutri',          keys: ['nutrition','nutrient','nutri','nutri match','crop nutrition','soil nutrition','పోషణ','ఆహారం','ஊட்டச்சத்து','पोषण','पोषक'] },
+  { route: '/therma',         keys: ['thermal','heat','therma','therma plan','heat plan','heat risk','thermal plan','temperature risk','ఉష్ణ','வெப்பம்','गर्मी','उष्णता'] },
+  { route: '/water',          keys: ['water','irrigation','sat water','water safety','water monitor','water check','water quality','पानी','సేద్యం','నీరు','தண்ணீர்','सिंचाई'] },
+
+  // ── Main pages ───────────────────────────────────────────────────────────
+  { route: '/home',           keys: ['home','dashboard','main','start','होम','ghar','హోమ్','முகப்பு','मुख्यपृष्ठ'] },
+  { route: '/farm-care',      keys: ['farm care','farmcare','satellite','farm map','my farm','खेत','వ్యవసాయం','ఫార్మ్','பண்ணை','शेत'] },
+  { route: '/livestock',      keys: ['livestock','animal','cow','buffalo','goat','sheep','cattle','poultry','hen','bull','bullock','पशु','मवेशी','పశువులు','கால்நடை','जनावरे'] },
+  { route: '/market',         keys: ['market','price','mandi','sell','sell crop','crop price','market rate','मंडी','बाजार','ధర','మార్కెట్','விலை','बाजार'] },
+  { route: '/fertilisers',    keys: ['fertilizer','fertiliser','manure','khad','organic','खाद','उर्वरक','ఎరువు','உரம்','खत'] },
+  { route: '/schemes',        keys: ['scheme','government','yojana','योजना','subsidy','pm kisan','pm fasal','kisan scheme','subsidy check','పథకాలు','திட்டங்கள்','सरकारी योजना','अनुदान'] },
+  { route: '/records',        keys: ['record','document','locker','farm locker','file','my records','రికార్డ్','పత్రాలు','பதிவு','कागजपत्र','दस्तावेज'] },
+  { route: '/news',           keys: ['news','alert','agri news','farm news','समाचार','వార్తలు','செய்தி','बातम्या'] },
+  { route: '/settings',       keys: ['setting','settings','configuration','preference','सेटिंग','సెట్టింగ్','அமைப்புகள்','सेटिंग्ज'] },
+  { route: '/community',      keys: ['community','forum','social','farmer forum','kisan samaj','discussion','समुदाय','సమాజం','சமூகம்','शेतकरी मंच'] },
+  { route: '/profile',        keys: ['profile','account','my profile','my account','प्रोफाइल','ప్రొఫైల్','சுயவிவரம்','प्रोफाइल'] },
+  { route: '/notifications',  keys: ['notification','notify','alerts','सूचना','నోటిఫికేషన్','அறிவிப்பு','सूचना'] },
+  { route: '/store',          keys: ['store','shop','tool','equipment','buy tools','agri store','दुकान','కొనుగోలు','దుకాణం','கடை','शेत साहित्य'] },
+  { route: '/help',           keys: ['help','support','guide','faq','contact support','सहायता','సహాయం','உதவி','मदत'] },
+];
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+const conditionLabel = (c = '') => {
+  const s = c.toLowerCase();
+  if (s.includes('clear') || s.includes('sunny')) return 'sunny ☀️';
+  if (s.includes('cloud'))  return 'cloudy ⛅';
+  if (s.includes('rain') || s.includes('drizzle')) return 'rainy 🌧️';
+  if (s.includes('storm') || s.includes('thunder')) return 'stormy ⛈️';
+  if (s.includes('snow'))   return 'snowy ❄️';
+  if (s.includes('fog') || s.includes('mist')) return 'foggy 🌫️';
+  return c;
+};
+
+// Beep to signal Vani is listening (pure Web Audio, no file needed)
+const playActivationBeep = () => {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.12);
+  } catch { /* AudioContext not available */ }
+};
+
+// ── Multi-alternative text scanner ────────────────────────────────────────
+// Scans up to maxAlternatives=3 hypotheses from a recognition result entry.
+// Returns the FIRST hypothesis text that matches any of the target strings,
+// or falls back to the top hypothesis. This is the key noise-robustness trick:
+// in noisy conditions the correct word is often alt #2 or #3.
+const bestMatch = (result, targets) => {
+  for (let a = 0; a < result.length; a++) {
+    const txt = result[a].transcript.toLowerCase();
+    if (targets.some(t => txt.includes(t))) return txt;
+  }
+  return result[0].transcript.toLowerCase(); // top guess fallback
+};
 
 // ── Context ────────────────────────────────────────────────────────────────
 const VaniContext = createContext(null);
@@ -38,301 +137,408 @@ export const useVani = () => useContext(VaniContext);
 // ── Provider ───────────────────────────────────────────────────────────────
 export const VaniProvider = ({ children }) => {
   const { i18n } = useTranslation();
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
 
-  // Settings
   const [isVoiceModeEnabled, setIsVoiceModeEnabled] = useState(
     () => localStorage.getItem('ah-voice-mode') === 'true'
   );
+  const [isListening,  setIsListening]  = useState(false);
+  const [isActivated,  setIsActivated]  = useState(false); // "hey vani" heard
+  const [isSpeaking,   setIsSpeaking]   = useState(false);
+  const [transcript,   setTranscript]   = useState('');
+  const [statusText,   setStatusText]   = useState('');
+  const [micDenied,    setMicDenied]    = useState(false);
 
-  // Simple mode state
-  const [isListening, setIsListening]   = useState(false);
-  const [isSpeaking, setIsSpeaking]     = useState(false);
-  const [transcript, setTranscript]     = useState('');
-
-  // LiveKit session state
+  // LiveKit compat
   const [isLiveKitActive, setIsLiveKitActive] = useState(false);
-  const [sessionIntent, setSessionIntent]     = useState(null);
+  const [sessionIntent,   setSessionIntent]   = useState(null);
 
-  // Mic consent state (separate from micConsentRef for re-render)
-  const micConsentRef = useRef(false);   // true once getUserMedia succeeded
-  const [micDenied, setMicDenied] = useState(false);
+  // Internal refs
+  const micGrantedRef    = useRef(false);
+  const shouldRunRef     = useRef(false);  // controls the restart loop
+  const activatedRef     = useRef(false);  // mirrors isActivated for use inside callbacks
+  const silenceTimerRef  = useRef(null);
+  const commandBufRef    = useRef('');     // accumulates command text after wake word
+  const processingRef    = useRef(false);
+  const weatherCacheRef  = useRef(null);
+  const weatherTimeRef   = useRef(0);
+  const recRef           = useRef(null);   // current recognition instance
 
-  // Read autoListen / wakeWord prefs from the same localStorage key SettingsContext writes
-  const getVaniPrefs = () => {
-    try {
-      const saved = localStorage.getItem('agriheal-settings');
-      if (saved) {
-        const { voiceAssistant: va } = JSON.parse(saved);
-        return {
-          autoListen:      va?.autoListen      ?? false,
-          wakeWordEnabled: va?.wakeWord        ?? true,
-        };
-      }
-    } catch { /* ignore */ }
-    return { autoListen: false, wakeWordEnabled: true };
-  };
-
-  // ── Speech Recognition (simple mode) ─────────────────────────────────
-  const recognition = useMemo(() => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return null;
-    const rec = new SR();
-    rec.continuous    = false;
-    rec.interimResults = true;
-    return rec;
-  }, []);
-
-  useEffect(() => {
-    if (recognition) {
-      recognition.lang = LANG_BCP[i18n.language] ?? 'en-IN';
-    }
-  }, [recognition, i18n.language]);
-
-  // Read voice speed/volume from SettingsContext localStorage (VaniProvider sits
-  // outside SettingsProvider so we cannot call useSettings() directly).
+  // ── Prefs ────────────────────────────────────────────────────────────────
   const getVoicePrefs = () => {
     try {
-      const saved = localStorage.getItem('agriheal-settings');
-      if (saved) {
-        const { voiceAssistant: va } = JSON.parse(saved);
-        return {
-          rate:   va?.voiceSpeed  ?? 1.0,
-          volume: (va?.voiceVolume ?? 80) / 100,
-        };
+      const s = localStorage.getItem('agriheal-settings');
+      if (s) {
+        const { voiceAssistant: va } = JSON.parse(s);
+        return { rate: va?.voiceSpeed ?? 1.1, volume: (va?.voiceVolume ?? 85) / 100, lang: va?.vaniLanguage || 'auto' };
       }
     } catch { /* ignore */ }
-    return { rate: 1.0, volume: 0.8 };
+    return { rate: 1.1, volume: 0.85, lang: 'auto' };
   };
 
-  // ── TTS (simple mode) ─────────────────────────────────────────────────
-  const speak = useCallback((text) => {
-    if (!window.speechSynthesis || !isVoiceModeEnabled) return;
+  // ── TTS ──────────────────────────────────────────────────────────────────
+  const speak = useCallback((text, forceLang) => {
+    if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
-    const { rate, volume } = getVoicePrefs();
+    const { rate, volume, lang } = getVoicePrefs();
     const utter = new SpeechSynthesisUtterance(text);
-    utter.lang   = LANG_BCP[i18n.language] ?? 'en-IN';
+    
+    // Auto-detect script if not forced
+    let detected = LANG_BCP[i18n.language] ?? 'en-IN';
+    if (lang && lang !== 'auto') {
+      detected = LANG_BCP[lang] ?? 'en-IN';
+    } else {
+      if (forceLang) detected = forceLang;
+      else if (/[\u0B80-\u0BFF]/.test(text)) detected = 'ta-IN';
+      else if (/[\u0C00-\u0C7F]/.test(text)) detected = 'te-IN';
+      else if (/[\u0900-\u097F]/.test(text)) detected = 'hi-IN';
+    }
+    
+    utter.lang   = detected;
     utter.rate   = rate;
     utter.volume = volume;
+
+    // Pick best female voice (including Indian female voice names)
+    const voices = window.speechSynthesis.getVoices();
+    const FEMALE = ['samantha','zira','karen','victoria','tessa','female','woman','lekha','shruti','veena','anjali','pallavi','aditi'];
+    const pick =
+      voices.find(v => v.lang === utter.lang     && FEMALE.some(f => v.name.toLowerCase().includes(f))) ||
+      voices.find(v => v.lang.startsWith('en')   && FEMALE.some(f => v.name.toLowerCase().includes(f)));
+    if (pick) utter.voice = pick;
+
     utter.onstart = () => setIsSpeaking(true);
     utter.onend   = () => setIsSpeaking(false);
     utter.onerror = () => setIsSpeaking(false);
     window.speechSynthesis.speak(utter);
-  }, [i18n.language, isVoiceModeEnabled]);
+  }, [i18n.language]);
 
+  // ── Weather ──────────────────────────────────────────────────────────────
+  const fetchWeatherByLocation = useCallback(async () => {
+    const now = Date.now();
+    if (weatherCacheRef.current && now - weatherTimeRef.current < 300000) return weatherCacheRef.current;
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) { reject(new Error('no geo')); return; }
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        try {
+          const { latitude: lat, longitude: lon } = pos.coords;
+          const key  = import.meta.env.VITE_WEATHER_API_KEY;
+          const res  = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${key}&units=metric`);
+          const data = await res.json();
+          const w = { temp: Math.round(data.main.temp), condition: data.weather[0].main, city: data.name, humidity: data.main.humidity };
+          weatherCacheRef.current = w;
+          weatherTimeRef.current  = now;
+          resolve(w);
+        } catch (e) { reject(e); }
+      }, reject, { timeout: 8000, maximumAge: 300000, enableHighAccuracy: false });
+    });
+  }, []);
 
-  // ── Voice command processor (routes through server proxy) ─────────────
-  const processVoiceCommand = async (text) => {
-    const lang = i18n.language;
-    // ⚠️  Routes here MUST match the actual React Router routes in App.jsx:
-    //   /home  /crops  /market  /records  /community  /experts
-    //   /news  /profile  /settings  /analysis  /schemes  /help
-    // Note: weather is embedded in FarmCare (/crops/weather), not a top-level route.
-    const prompt = `
-You are Vani, a concise voice assistant for AgriHeal, an agriculture app for rural Indian farmers.
-User said: "${text}"
-Respond in the SAME language as the user (currently: ${lang}).
-Keep reply short and conversational (1-2 sentences max). No markdown.
-Available navigation routes (use EXACTLY these paths):
-  /home         - dashboard/home page
-  /crops        - crop management
-  /market       - market prices
-  /records      - farm records (livestock, equipment)
-  /community    - community feed
-  /experts      - expert consultations
-  /news         - news center
-  /profile      - farmer profile
-  /settings     - app settings
-  /analysis     - plant disease image scanner
-  /schemes      - government schemes
-  /help         - help and support
-Return ONLY a JSON object, no markdown fences:
-{"speech": "...", "action": "NAVIGATE" | "NONE", "target": "/exact-route-or-null"}
-`.trim();
+  const processCommand = useCallback(async (text) => {
+    const t = text.toLowerCase().trim();
+    if (!t) return { speech: "Yes? I am listening.", action: 'NONE', target: null };
 
     try {
-      const raw = await generateText(prompt);
-      const cleaned = raw.trim().replace(/^```json/, '').replace(/^```/, '').replace(/```$/, '').trim();
-      const parsed = JSON.parse(cleaned);
-      // Safety: reject any target that isn't a known valid route
-      const VALID_ROUTES = new Set([
-        '/home', '/crops', '/market', '/records', '/community',
-        '/experts', '/news', '/profile', '/settings', '/analysis',
-        '/schemes', '/help'
-      ]);
-      if (parsed.action === 'NAVIGATE' && !VALID_ROUTES.has(parsed.target)) {
-        parsed.action = 'NONE';
-        parsed.target = null;
+      setStatusText('Processing command...');
+      const ctx = getGlobalContext();
+      
+      let weather = weatherCacheRef.current;
+      if (!weather || (Date.now() - weatherTimeRef.current > 300000)) {
+         // Fire and forget; don't block the AI response waiting for location/weather
+         fetchWeatherByLocation().catch(() => {});
       }
-      return parsed;
-    } catch {
-      // Offline / proxy unavailable — keyword fallback (corrected routes)
-      const t = text.toLowerCase();
-      if (t.includes('market') || t.includes('price') || t.includes('मंडी') || t.includes('ధర'))
-        return { speech: 'Opening market prices.', action: 'NAVIGATE', target: '/market' };
-      if (t.includes('crop') || t.includes('plant') || t.includes('పంట') || t.includes('फसल'))
-        return { speech: 'Here are your crops.', action: 'NAVIGATE', target: '/crops' };
-      if (t.includes('weather') || t.includes('rain') || t.includes('వాతావరణం') || t.includes('मौसम'))
-        return { speech: 'Showing farm weather info.', action: 'NAVIGATE', target: '/crops' };
-      if (t.includes('scan') || t.includes('disease') || t.includes('camera') || t.includes('వ్యాధి'))
-        return { speech: 'Opening plant scanner.', action: 'NAVIGATE', target: '/analysis' };
-      if (t.includes('record') || t.includes('livestock') || t.includes('equipment'))
-        return { speech: 'Opening farm records.', action: 'NAVIGATE', target: '/records' };
-      if (t.includes('news') || t.includes('alert'))
-        return { speech: 'Opening news center.', action: 'NAVIGATE', target: '/news' };
-      return {
-        speech: lang === 'hi' ? 'मुझे समझ नहीं आया।'
-               : lang === 'te' ? 'నాకు అర్థం కాలేదు.'
-               : "I didn't catch that. Try saying 'open crops' or 'scan disease'.",
-        action: 'NONE', target: null
+
+      // Pass the query directly to Mistral for 100% flexible AI-driven control!
+      const aiResponse = await generateVaniResponse(t, { farmer: ctx, weather });
+      
+      return { 
+        speech: aiResponse.text, 
+        action: aiResponse.action?.action || 'NONE', 
+        target: aiResponse.action?.payload?.target || null 
       };
+    } catch (e) {
+      console.error("AI engine processing failed:", e);
+      return { speech: "My network connection is a bit slow right now. Could you repeat that?", action: 'NONE', target: null };
     }
-  };
+  }, [fetchWeatherByLocation]);
 
-  // ── Handle incoming transcript ─────────────────────────────────────────
-  const handleVoiceInput = useCallback(async (text) => {
-    setTranscript(text);
-    const response = await processVoiceCommand(text);
-    if (response.speech) setTimeout(() => speak(response.speech), 100);
-    if (response.action === 'NAVIGATE' && response.target) navigate(response.target);
-  }, [navigate, speak, i18n.language]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ── Handle command (after silence / final result) ─────────────────────────
+  const handleCommand = useCallback(async (cmd) => {
+    const clean = cmd.trim();
+    if (!clean || processingRef.current) return;
+    processingRef.current = true;
 
-  // ── Wire recognition events ────────────────────────────────────────────
-  useEffect(() => {
-    if (!recognition) return;
+    // Reset activated state — go back to wake-word phase
+    activatedRef.current = false;
+    setIsActivated(false);
+    commandBufRef.current = '';
 
-    recognition.onresult = (event) => {
-      let current = '';
-      let final = false;
-      for (let i = 0; i < event.results.length; i++) {
-        current += event.results[i][0].transcript;
-        if (event.results[i].isFinal) final = true;
-      }
-      setTranscript(current);
-      if (final) handleVoiceInput(current);
-    };
+    setStatusText('Processing...');
+    setTranscript('');
 
-    recognition.onstart  = () => setIsListening(true);
-    recognition.onend    = () => setIsListening(false);
-    recognition.onerror  = (e) => {
-      console.error('[Vani] Speech error:', e.error);
-      setIsListening(false);
-      if (e.error === 'not-allowed') {
-        alert('Microphone access denied. Please allow microphone permissions to use Vani.');
-      }
-    };
-  }, [recognition, handleVoiceInput]);
-
-  // ── Public API ─────────────────────────────────────────────────────────
-
-  const toggleVoiceMode = (enabled) => {
-    setIsVoiceModeEnabled(enabled);
-    localStorage.setItem('ah-voice-mode', String(enabled));
-    if (!enabled) {
-      stopListening();
-      setIsLiveKitActive(false);
-      window.speechSynthesis?.cancel();
-      setIsSpeaking(false);
-    }
-  };
-
-  // ── Explicit mic permission request ────────────────────────────────────
-  // Must be called inside a user-gesture handler (button click).
-  // Returns true if permission was granted, false if denied.
-  const requestMicPermission = async () => {
-    if (micConsentRef.current) return true; // already granted this session
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // Immediately stop the stream — we only needed the permission grant
-      stream.getTracks().forEach(t => t.stop());
-      micConsentRef.current = true;
+      const res = await processCommand(clean);
+      setStatusText(res.speech);
+      speak(res.speech);
+      if (res.action === 'NAVIGATE' && res.target) setTimeout(() => navigate(res.target), 100);
+    } catch {
+      speak('Sorry, I had an error.');
+    } finally {
+      processingRef.current = false;
+      setTimeout(() => setStatusText(''), 5000);
+    }
+  }, [processCommand, speak, navigate]);
+
+  // ── Mic permission ────────────────────────────────────────────────────────
+  const requestMicPermission = async () => {
+    if (micGrantedRef.current) return true;
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+      s.getTracks().forEach(t => t.stop());
+      micGrantedRef.current = true;
       setMicDenied(false);
-      // Unlock speech synthesis on first user gesture (Safari/iOS)
-      window.speechSynthesis?.speak(new SpeechSynthesisUtterance(''));
+      if (window.speechSynthesis) window.speechSynthesis.speak(new SpeechSynthesisUtterance(''));
       return true;
-    } catch (err) {
-      console.warn('[Vani] Mic permission denied:', err);
+    } catch {
       setMicDenied(true);
       return false;
     }
   };
 
-  const startListening = async () => {
-    if (!isVoiceModeEnabled) return;
-    if (!recognition) {
-      alert('Voice recognition is not supported in this browser. Please use Google Chrome.');
+  // ── Core recognition loop ─────────────────────────────────────────────────
+  // One-shot sessions (continuous=false) restart instantly after each result.
+  // This is the most reliable pattern for Chrome's Web Speech API.
+  //
+  // NOISE ROBUSTNESS: maxAlternatives=3 means the browser returns up to 3
+  // guesses per word. We scan all of them for wake words and commands, so
+  // Vani catches speech that the top guess missed. Zero extra latency.
+  const startLoop = useCallback(() => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR || !shouldRunRef.current) return;
+
+    const rec = new SR();
+    const { lang } = getVoicePrefs();
+    rec.lang            = (lang && lang !== 'auto') ? (LANG_BCP[lang] ?? 'en-IN') : (LANG_BCP[i18n.language] ?? 'en-IN');
+    rec.continuous      = false;   // one-shot — most reliable
+    rec.interimResults  = true;    // needed for silence detection & live display
+    rec.maxAlternatives = 3;       // ★ check top-3 hypotheses for noise robustness
+    recRef.current = rec;
+
+    rec.onresult = (e) => {
+      let interim = '';
+      let finalText = '';
+
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          // ★ Use bestMatch to find the hypothesis that matches a known keyword
+          finalText += bestMatch(e.results[i], [
+            ...WAKE,
+            ...NAV_MAP.flatMap(n => n.keys),
+            'weather','mausam','temperature','help','hello','hi','namaste',
+          ]);
+        } else {
+          // Interim: use top guess (bestMatch not needed for live display)
+          interim += e.results[i][0].transcript;
+        }
+      }
+
+      // ★ Noise burst guard: ignore if heard text is ≤2 characters
+      const raw = (finalText || interim);
+      if (raw.trim().length <= 2) return;
+
+      const heard = raw.toLowerCase();
+
+      // ── Phase 1: Check for wake word ──────────────────────────────────
+      if (!activatedRef.current) {
+        // ★ For interim, also scan all alternatives for wake word
+        let woke = WAKE.some(w => heard.includes(w));
+
+        // If not matched on top guess, try other alternatives for wake word
+        if (!woke && e.results.length > 0) {
+          for (let i = e.resultIndex; i < e.results.length; i++) {
+            for (let a = 0; a < e.results[i].length; a++) {
+              const alt = e.results[i][a].transcript.toLowerCase();
+              if (WAKE.some(w => alt.includes(w))) {
+                woke = true;
+                break;
+              }
+            }
+            if (woke) break;
+          }
+        }
+
+        if (woke) {
+          activatedRef.current = true;
+          setIsActivated(true);
+          playActivationBeep();
+          setStatusText('🎙️ Listening...');
+
+          // Extract command from same utterance (e.g. "Hey Vani open crops")
+          let cmd = heard;
+          WAKE.forEach(w => { cmd = cmd.replace(w, ''); });
+          cmd = cmd.trim();
+          commandBufRef.current = cmd;
+          if (cmd) setTranscript(cmd);
+        }
+        // Not activated and no wake word → ignore
+        return;
+      }
+
+      // ── Phase 2: Collect command after wake word ──────────────────────
+      // Strip any re-occurrence of wake word mid-command
+      let cmdPart = heard.replace(/\b(hey|ok|okay)?\s*(vani|bani|wani)\b/gi, '').trim();
+      if (cmdPart) {
+        commandBufRef.current = cmdPart;
+        setTranscript(cmdPart);
+      }
+
+      // On final result → process immediately (no silence wait needed)
+      if (finalText) {
+        clearTimeout(silenceTimerRef.current);
+        const cmd = commandBufRef.current;
+        handleCommand(cmd);
+        return;
+      }
+
+      // On interim → reset silence timer (user is still speaking)
+      // ★ 500ms (was 700ms) — eliminates lag while remaining natural
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = setTimeout(() => {
+        const cmd = commandBufRef.current;
+        if (cmd) handleCommand(cmd);
+      }, 500);
+    };
+
+    rec.onend = () => {
+      setIsListening(false);
+      // If activated but no command came (e.g. user just said "hey vani"), prompt them
+      if (activatedRef.current && !processingRef.current) {
+        const hasCmd = commandBufRef.current.trim();
+        if (!hasCmd) {
+          speak("Yes? What would you like to do?");
+          activatedRef.current = false;
+          setIsActivated(false);
+          commandBufRef.current = '';
+        }
+      }
+      // ★ 50ms gap (was 0ms) — prevents Chrome InvalidStateError on slow devices
+      if (shouldRunRef.current) {
+        setTimeout(startLoop, 50);
+      }
+    };
+
+    rec.onerror = (e) => {
+      setIsListening(false);
+      if (e.error === 'not-allowed') {
+        setMicDenied(true);
+        shouldRunRef.current = false;
+        return;
+      }
+      // no-speech / aborted / network → restart
+      if (shouldRunRef.current) setTimeout(startLoop, 100);
+    };
+
+    rec.onstart = () => setIsListening(true);
+
+    try {
+      rec.start();
+    } catch {
+      if (shouldRunRef.current) setTimeout(startLoop, 500);
+    }
+  }, [i18n.language, handleCommand, speak]);
+
+  // ── Start / Stop ──────────────────────────────────────────────────────────
+  const startListening = useCallback(async () => {
+    if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
+      alert('Voice recognition requires Chrome or Edge browser.');
       return;
     }
-    // Always request explicit permission before starting recognition
     const granted = await requestMicPermission();
-    if (!granted) {
-      speak('Microphone access was denied. Please allow microphone in your browser settings.');
-      return;
-    }
+    if (!granted) { speak('Microphone access was denied. Please allow it in browser settings.'); return; }
+    shouldRunRef.current = true;
+    startLoop();
+  }, [startLoop, speak]);
+
+  const stopListening = useCallback(() => {
+    shouldRunRef.current = false;
+    activatedRef.current = false;
+    commandBufRef.current = '';
+    clearTimeout(silenceTimerRef.current);
+    try { recRef.current?.stop(); } catch { /* ignore */ }
+    setIsListening(false);
+    setIsActivated(false);
     setTranscript('');
-    try { recognition.start(); } catch { /* already started */ }
-  };
+    setStatusText('');
+  }, []);
 
-  const stopListening = () => {
-    try { recognition?.stop(); } catch { /* already stopped */ }
-  };
+  // ── Toggle voice mode ─────────────────────────────────────────────────────
+  const toggleVoiceMode = useCallback(async (enabled) => {
+    setIsVoiceModeEnabled(enabled);
+    localStorage.setItem('ah-voice-mode', String(enabled));
 
-  /**
-   * startVaniSession — opens the full LiveKit voice session.
-   * Requests mic permission on the user gesture before opening LiveKit.
-   * @param {Object} options
-   * @param {string} [options.intent] - e.g. 'add_crop', 'dashboard_help', 'general'
-   */
-  const startVaniSession = async ({ intent = 'general' } = {}) => {
-    if (!isVoiceModeEnabled) {
-      // Inform the user rather than silently failing
-      speak('Please enable the voice assistant in Settings first.');
-      return;
+    if (enabled) {
+      const granted = await requestMicPermission();
+      // Play greeting — mic starts after greeting so beep isn't cut off
+      const { rate, volume } = getVoicePrefs();
+      const utter = new SpeechSynthesisUtterance("Hi! I'm Vani. Say Hey Vani followed by your command.");
+      utter.lang   = LANG_BCP[i18n.language] ?? 'en-IN';
+      utter.rate   = rate;
+      utter.volume = volume;
+      const voices = window.speechSynthesis?.getVoices() || [];
+      const FEMALE = ['samantha','zira','karen','victoria','tessa','female','woman','lekha','shruti','veena','anjali','pallavi','aditi'];
+      const pick = voices.find(v => v.lang.startsWith('en') && FEMALE.some(f => v.name.toLowerCase().includes(f)));
+      if (pick) utter.voice = pick;
+      utter.onend = () => { setIsSpeaking(false); if (granted) startListening(); };
+      utter.onstart = () => setIsSpeaking(true);
+      utter.onerror = () => { setIsSpeaking(false); if (granted) startListening(); };
+      window.speechSynthesis?.cancel();
+      window.speechSynthesis?.speak(utter);
+    } else {
+      stopListening();
+      window.speechSynthesis?.cancel();
+      setIsSpeaking(false);
+      setIsLiveKitActive(false);
     }
-    const granted = await requestMicPermission();
-    if (!granted) {
-      speak('Microphone access was denied. Please allow microphone in your browser settings to use Vani.');
-      return;
+  }, [i18n.language, startListening, stopListening]);
+
+  // ── Auto-start on app load if Vani was already on ────────────────────────
+  useEffect(() => {
+    if (isVoiceModeEnabled) {
+      // Delay slightly so page fully loads first
+      const t = setTimeout(() => startListening(), 1200);
+      return () => clearTimeout(t);
     }
-    setSessionIntent(intent);
-    setIsLiveKitActive(true);
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // only on mount
 
-  // NOTE: Auto-listen via setTimeout was removed because browsers require an
-  // explicit user gesture (tap/click) before granting microphone access.
-  // Instead: components that support auto-listen should render a
-  // 'Tap to speak' button when isVoiceModeEnabled && autoListenPref is true,
-  // and call startListening() in that button's onClick handler.
-  // The autoListenPref is readable via getVaniPrefs().autoListen.
-
-  const greet = (name, weather) => {
+  // ── Greet helper ──────────────────────────────────────────────────────────
+  const greet = useCallback((name, weather) => {
     if (!isVoiceModeEnabled) return;
-    const msg = i18n.language === 'hi' ? `नमस्ते ${name}, आज मौसम है ${weather}`
-              : i18n.language === 'te' ? `నమస్తే ${name}, ఈ రోజు వాతావరణం ${weather}`
-              : `Hello ${name}, today's weather is ${weather}.`;
+    const msg = `Hello ${name}! ${weather ? `Today's weather is ${weather}.` : ''} Say Hey Vani anytime.`;
     speak(msg);
-  };
+  }, [isVoiceModeEnabled, speak]);
+
+  // ── startVaniSession (prototype: just starts mic) ─────────────────────────
+  const startVaniSession = useCallback(async ({ intent = 'general' } = {}) => {
+    if (!isVoiceModeEnabled) { speak('Please enable the voice assistant in Settings first.'); return; }
+    setSessionIntent(intent);
+    await startListening();
+  }, [isVoiceModeEnabled, speak, startListening]);
 
   return (
     <VaniContext.Provider value={{
-      // Settings
-      isVoiceModeEnabled,
-      toggleVoiceMode,
+      isVoiceModeEnabled, toggleVoiceMode,
       micDenied,
-      // Simple mode
-      isListening,
-      isSpeaking,
-      transcript,
-      startListening,
-      stopListening,
-      speak,
-      greet,
+      isListening, isActivated, isSpeaking,
+      transcript, statusText,
+      startListening, stopListening,
+      speak, greet,
       requestMicPermission,
-      // LiveKit session
-      isLiveKitActive,
-      setIsLiveKitActive,
-      sessionIntent,
-      startVaniSession,
+      fetchWeatherByLocation,
+      isLiveKitActive, setIsLiveKitActive,
+      sessionIntent, startVaniSession,
+      // compat
+      overlay: isLiveKitActive,
+      closeVani: () => setIsLiveKitActive(false),
     }}>
       {children}
     </VaniContext.Provider>

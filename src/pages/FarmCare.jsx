@@ -218,9 +218,6 @@ export default function FarmCare() {
 
           {/* Smart Water Management */}
           <div className="relative">
-            <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px] z-10 flex items-center justify-center rounded-3xl">
-              <span className="bg-amber-100 text-amber-800 text-sm font-semibold px-4 py-2 rounded-full border border-amber-300">🛰️ Satellite features coming soon</span>
-            </div>
             <section className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
               <h2 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
                 <Droplets className="w-5 h-5 text-blue-500" /> Smart Water Management

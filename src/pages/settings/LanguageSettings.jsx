@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useTranslation } from 'react-i18next';
+import { CheckCircle2 } from 'lucide-react';
 
 export default function LanguageSettings() {
   const { settings, updateSetting } = useSettings();
@@ -10,8 +11,16 @@ export default function LanguageSettings() {
   const handleSelect = (langId) => {
     // Persist to SettingsContext (localStorage)
     updateSetting('language', 'appLanguage', langId);
-    // Apply immediately to i18next (strips -IN suffix: 'hi-IN' → 'hi')
-    i18n.changeLanguage(langId.split('-')[0]);
+    
+    // Set Google Translate cookie
+    const targetLang = langId.split('-')[0]; // 'hi-IN' -> 'hi'
+    document.cookie = `googtrans=/en/${targetLang}; path=/;`;
+    
+    // Also apply to i18next just in case we still use it for something
+    i18n.changeLanguage(targetLang);
+    
+    // Reload to apply Google Translate
+    window.location.reload();
   };
 
   const LANGUAGES = [
@@ -26,40 +35,36 @@ export default function LanguageSettings() {
   ];
 
   return (
-    <div className="animate-in fade-in slide-in-from-right-4 duration-300 w-full">
-      <div className="bg-white  rounded-2xl p-2 shadow-sm border border-gray-100 ">
-        <div className="p-4 border-b border-gray-100 ">
-          <h3 className="font-bold text-gray-900  mb-1">Choose App Language</h3>
-          <p className="text-sm text-gray-500">App will restart to apply changes</p>
-        </div>
-
-        <div className="p-2">
-          {LANGUAGES.map((lang) => (
-            <label key={lang.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl cursor-pointer transition-colors">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-gray-100  rounded-full flex items-center justify-center text-lg">
-                  {lang.nativeName[0]}
+    <div className="animate-in fade-in slide-in-from-right-4 duration-300 w-full pb-10">
+      
+      <div className="mb-8">
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-4 mb-3">App Language</h3>
+        <div className="bg-slate-50 rounded-3xl overflow-hidden flex flex-col gap-0.5">
+          {LANGUAGES.map((lang) => {
+            const isSelected = language.appLanguage === lang.id;
+            return (
+              <button
+                key={lang.id}
+                onClick={() => handleSelect(lang.id)}
+                className={`w-full flex items-center justify-between p-4 transition-colors ${
+                  isSelected ? 'bg-gray-200/60' : 'bg-slate-50 hover:bg-gray-100'
+                }`}
+              >
+                <div className="text-left flex flex-col">
+                  <span className={`font-bold text-sm ${isSelected ? 'text-gray-900' : 'text-gray-700'}`}>
+                    {lang.name}
+                  </span>
+                  <span className="text-xs text-gray-500 mt-0.5">{lang.nativeName}</span>
                 </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 ">{lang.name}</h3>
-                  <p className="text-xs text-gray-500">{lang.nativeName}</p>
-                </div>
-              </div>
-              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${language.appLanguage === lang.id ? 'border-green-600 bg-green-600' : 'border-gray-300 '}`}>
-                {language.appLanguage === lang.id && <div className="w-2.5 h-2.5 bg-white rounded-full"></div>}
-              </div>
-              <input 
-                type="radio" 
-                name="appLanguage" 
-                value={lang.id} 
-                checked={language.appLanguage === lang.id}
-                onChange={() => handleSelect(lang.id)}
-                className="hidden"
-              />
-            </label>
-          ))}
+                {isSelected && (
+                  <CheckCircle2 className="w-5 h-5 text-green-600" />
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
+      
     </div>
   );
 }

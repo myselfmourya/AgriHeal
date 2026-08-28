@@ -14,6 +14,10 @@ export default function AddCropModal({ isOpen, onClose }) {
   const [plantingMethod, setPlantingMethod] = useState('')
   const [irrigation, setIrrigation] = useState('')
   const [fertilisers, setFertilisers] = useState('')
+  const [variety, setVariety] = useState('')
+  const [soilType, setSoilType] = useState('')
+  const [expectedHarvest, setExpectedHarvest] = useState('')
+  const [problems, setProblems] = useState('')
   const [error, setError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   
@@ -28,14 +32,14 @@ export default function AddCropModal({ isOpen, onClose }) {
 
   const handleNext = () => {
     if (step === 1) {
-      if (!cropName.trim() || !field.trim() || !area.trim()) {
-        setError('Please fill all required fields (*)')
+      if (!cropName.trim() || !variety.trim() || !field.trim() || !area.trim()) {
+        setError('Please fill all fields')
         return
       }
     }
     if (step === 2) {
-      if (!sowDate || !plantingMethod.trim() || !irrigation.trim()) {
-        setError('Please fill all required fields (*)')
+      if (!sowDate || !plantingMethod.trim() || !irrigation.trim() || !fertilisers.trim()) {
+        setError('Please fill all fields')
         return
       }
     }
@@ -49,6 +53,11 @@ export default function AddCropModal({ isOpen, onClose }) {
   }
   
   const handleFinish = async () => {
+    if (!soilType.trim() || !expectedHarvest.trim() || !problems.trim()) {
+      setError('Please fill all fields')
+      return
+    }
+
     setIsSaving(true)
     let imageUrl = null
     try {
@@ -67,7 +76,11 @@ export default function AddCropModal({ isOpen, onClose }) {
       name: cropName || 'New Crop', 
       emoji: '🌱',
       image: imageUrl,
-      fertilisers: fertilisers || ''
+      fertilisers: fertilisers || '',
+      variety: variety,
+      soilType: soilType,
+      expectedHarvest: expectedHarvest,
+      problems: problems
     })
     setIsSaving(false)
     onClose()
@@ -79,6 +92,10 @@ export default function AddCropModal({ isOpen, onClose }) {
     setPlantingMethod('')
     setIrrigation('')
     setFertilisers('')
+    setVariety('')
+    setSoilType('')
+    setExpectedHarvest('')
+    setProblems('')
     setError('')
   }
 
@@ -160,9 +177,11 @@ export default function AddCropModal({ isOpen, onClose }) {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Which variety is it? <span className="text-gray-400 font-normal">(Optional)</span></label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Which variety is it? <span className="text-red-500">*</span></label>
                   <input 
                     type="text" 
+                    value={variety}
+                    onChange={(e) => setVariety(e.target.value)}
                     placeholder="e.g. BPT 5204, IR64, etc." 
                     className="w-full bg-white border border-gray-200 rounded-xl p-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
                   />
@@ -243,7 +262,7 @@ export default function AddCropModal({ isOpen, onClose }) {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Fertilisers Used <span className="text-gray-400 font-normal">(Optional)</span></label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Fertilisers Used <span className="text-red-500">*</span></label>
                   <input 
                     type="text" 
                     value={fertilisers}
@@ -262,7 +281,7 @@ export default function AddCropModal({ isOpen, onClose }) {
                 <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
                   <ImageIcon className="w-4 h-4 text-orange-600" />
                 </div>
-                <h3 className="font-bold text-slate-800">Media & Extras <span className="text-gray-400 font-normal text-xs">(All Optional)</span></h3>
+                <h3 className="font-bold text-slate-800">Media & Extras</h3>
               </div>
 
               <div className="space-y-4">
@@ -279,17 +298,21 @@ export default function AddCropModal({ isOpen, onClose }) {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">Soil Type</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">Soil Type <span className="text-red-500">*</span></label>
                     <input 
                       type="text" 
+                      value={soilType}
+                      onChange={(e) => setSoilType(e.target.value)}
                       placeholder="e.g. Black, Red, Sandy..." 
                       className="w-full bg-white border border-gray-200 rounded-xl p-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">Expected Harvest</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">Expected Harvest <span className="text-red-500">*</span></label>
                     <input 
                       type="text" 
+                      value={expectedHarvest}
+                      onChange={(e) => setExpectedHarvest(e.target.value)}
                       placeholder="e.g. October" 
                       className="w-full bg-white border border-gray-200 rounded-xl p-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
                     />
@@ -297,9 +320,11 @@ export default function AddCropModal({ isOpen, onClose }) {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Any current problems?</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Any current problems? <span className="text-red-500">*</span></label>
                   <input 
                     type="text" 
+                    value={problems}
+                    onChange={(e) => setProblems(e.target.value)}
                     placeholder="e.g. Yellow Leaves, Pests..." 
                     className="w-full bg-white border border-gray-200 rounded-xl p-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
                   />

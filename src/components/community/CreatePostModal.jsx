@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { X, Image as ImageIcon, Video, Mic, Globe2 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 
-export default function CreatePostModal({ onClose }) {
+export default function CreatePostModal({ onClose, onPostCreated }) {
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('Question');
   const [language, setLanguage] = useState('English');
@@ -9,10 +10,27 @@ export default function CreatePostModal({ onClose }) {
   const categories = ['Question', 'Crop Care', 'Pest & Disease', 'Farming Tip', 'Success Story', 'Market Prices'];
   const languages = ['English', 'తెలుగు (Telugu)', 'தமிழ் (Tamil)', 'ಕನ್ನಡ (Kannada)', 'हिंदी (Hindi)'];
 
-  const handleSubmit = () => {
-    // In a real app, this would post to the backend
-    console.log("Posting:", { content, category, language });
-    onClose();
+  const handleSubmit = async () => {
+    try {
+      const { data, error } = await supabase.from('community_posts').insert([
+        {
+          author_name: 'Ravi Kumar', // Fallback or get from context
+          author_avatar: 'RK',
+          content: content,
+          tags: [category]
+        }
+      ]);
+      
+      if (error) throw error;
+      
+      console.log("Post created successfully");
+      if (onPostCreated) onPostCreated(); // Call a callback to refresh feed if passed
+      onClose();
+    } catch (error) {
+      console.error("Error creating post:", error.message);
+      // In a real app, show a toast notification here
+      onClose();
+    }
   };
 
   return (

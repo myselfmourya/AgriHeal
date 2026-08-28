@@ -14,7 +14,7 @@ export default function HelpSupportPage() {
   const { setOverlay } = useVani();
 
   return (
-    <div className="absolute inset-0 flex flex-col bg-[#f4f7f5] overflow-hidden">
+    <div className="flex flex-col bg-[#f4f7f5] overflow-hidden h-full">
       
       {/* Top Header (Mobile Only) */}
       <div className="md:hidden bg-white px-4 py-4 shadow-sm relative z-20 flex items-center justify-between shrink-0 border-b border-gray-100">

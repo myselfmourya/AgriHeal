@@ -11,8 +11,8 @@ export default function DisplayThemeSettings() {
   const Toggle = ({ label, checked, onChange, subtitle }) => (
     <div className="flex justify-between items-center py-3">
       <div className="flex flex-col">
-        <span className="text-zinc-900  font-bold">{label}</span>
-        {subtitle && <span className="text-zinc-500  text-xs">{subtitle}</span>}
+        <span className="text-gray-900  font-bold">{label}</span>
+        {subtitle && <span className="text-gray-400  text-xs">{subtitle}</span>}
       </div>
       <button 
         onClick={() => onChange(!checked)}
@@ -33,19 +33,19 @@ export default function DisplayThemeSettings() {
           <div className="flex gap-2">
             <button 
               onClick={() => { updateSetting('displayTheme', 'theme', 'light'); if (appTheme !== 'light') toggleTheme(); }}
-              className={`flex-1 py-3 rounded-xl border flex items-center justify-center gap-2 font-bold text-sm transition-all ${displayTheme.theme === 'light' ? 'border-green-600 text-green-700 bg-green-50' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+              className={`flex-1 py-3 rounded-xl border flex items-center justify-center gap-2 font-bold text-sm transition-all ${displayTheme.theme === 'light' ? 'border-green-600 text-green-700 bg-green-50' : 'border-gray-200 text-slate-600 hover:bg-gray-50'}`}
             >
               <Sun className="w-4 h-4" /> Light
             </button>
             <button 
               onClick={() => { updateSetting('displayTheme', 'theme', 'dark'); if (appTheme !== 'dark') toggleTheme(); }}
-              className={`flex-1 py-3 rounded-xl border flex items-center justify-center gap-2 font-bold text-sm transition-all ${displayTheme.theme === 'dark' ? 'border-green-600 text-green-700 bg-green-50 ' : 'border-gray-200 text-gray-600 hover:bg-gray-50  '}`}
+              className={`flex-1 py-3 rounded-xl border flex items-center justify-center gap-2 font-bold text-sm transition-all ${displayTheme.theme === 'dark' ? 'border-green-600 text-green-700 bg-green-50 ' : 'border-gray-200 text-slate-600 hover:bg-gray-50  '}`}
             >
               <Moon className="w-4 h-4" /> Dark
             </button>
             <button 
               onClick={() => updateSetting('displayTheme', 'theme', 'system')}
-              className={`flex-1 py-3 rounded-xl border flex items-center justify-center gap-2 font-bold text-sm transition-all ${displayTheme.theme === 'system' ? 'border-green-600 text-green-700 bg-green-50 ' : 'border-gray-200 text-gray-600 hover:bg-gray-50  '}`}
+              className={`flex-1 py-3 rounded-xl border flex items-center justify-center gap-2 font-bold text-sm transition-all ${displayTheme.theme === 'system' ? 'border-green-600 text-green-700 bg-green-50 ' : 'border-gray-200 text-slate-600 hover:bg-gray-50  '}`}
             >
               <Monitor className="w-4 h-4" /> System
             </button>
@@ -89,30 +89,6 @@ export default function DisplayThemeSettings() {
               </button>
             ))}
           </div>
-        </div>
-
-        {/* Corner Style */}
-        <div className="flex items-center justify-between p-3 border-b border-gray-100  hover:bg-gray-50 rounded-xl cursor-pointer">
-          <span className="font-bold text-gray-900 ">Corner Style</span>
-          <div className="flex items-center text-sm font-bold text-gray-500">
-            {displayTheme.cornerStyle} <ChevronRight className="w-4 h-4 ml-1" />
-          </div>
-        </div>
-
-        <div className="p-3 border-b border-gray-100 ">
-          <Toggle 
-            label="Animations" 
-            checked={displayTheme.animations} 
-            onChange={(val) => updateSetting('displayTheme', 'animations', val)} 
-          />
-        </div>
-
-        <div className="p-3">
-          <Toggle 
-            label="Reduce Motion" 
-            checked={displayTheme.reduceMotion} 
-            onChange={(val) => updateSetting('displayTheme', 'reduceMotion', val)} 
-          />
         </div>
 
       </div>

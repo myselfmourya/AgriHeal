@@ -1,271 +1,310 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
-     Leaf, CloudSun, TrendingUp, Activity, 
-    Droplet, Sprout,
-     Calendar as 
-      Mic, ShoppingBag, MoreHorizontal, Bot
+  Bell, CalendarPlus, Leaf, MessageCircle, MapPin, 
+  Sparkles, Bot, Newspaper, ArrowUpRight, CloudSun,
+  ShieldCheck, Droplets, Users, Activity, ShoppingCart, Wrench, TrendingUp
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { useVani } from '../contexts/VaniContext';
 import { useFarmer } from '../contexts/FarmerContext';
-import { generateCropDetails } from '../pages/CropManagement';
-import CropQuickViewModal from './CropQuickViewModal';
-import DashboardQuickAccessModal from './DashboardQuickAccessModal';
 import { useTranslation } from 'react-i18next';
+import { useVani } from '../contexts/VaniContext';
+import { fetchNews } from '../services/aiNewsService';
+import DashboardQuickAccessModal from './DashboardQuickAccessModal';
 
-export default function FarmerDashboard({ onSpeak }) {
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 5) return "Good Night";
+  if (h < 12) return "Good Morning";
+  if (h < 17) return "Good Afternoon";
+  return "Good Evening";
+}
+
+export default function FarmerDashboard() {
+  const navigate = useNavigate();
+  const { profile } = useFarmer();
   const { t } = useTranslation();
   const { startVaniSession } = useVani();
-  const { notifications, myCrops } = useFarmer();
-  const navigate = useNavigate();
-  const audioRef = useRef(null);
-
-  const displayCrops = myCrops.map(generateCropDetails).slice(0, 3);
-
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [calendarDate, setCalendarDate] = useState(new Date());
-  const [selectedCrop, setSelectedCrop] = useState(null);
-  const [quickAccessType, setQuickAccessType] = useState(null);
-
-  const getWeekDates = (date) => {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = d.getDate() - day; 
-    const startOfWeek = new Date(d.setDate(diff));
-    const dates = [];
-    for (let i = 0; i < 7; i++) {
-      const nextDate = new Date(startOfWeek);
-      nextDate.setDate(startOfWeek.getDate() + i);
-      dates.push(nextDate);
-    }
-    return dates;
-  };
-
-  const weekDates = getWeekDates(calendarDate);
-  const displayedMonth = weekDates[0].toLocaleString('default', { month: 'long', year: 'numeric' });
-
-  const handlePrevWeek = () => {
-    setCalendarDate(prev => new Date(prev.getTime() - 7 * 24 * 60 * 60 * 1000));
-  };
-  const handleNextWeek = () => {
-    setCalendarDate(prev => new Date(prev.getTime() + 7 * 24 * 60 * 60 * 1000));
-  };
-
-  // Only show reminders for the selected date
-  const reminderTasks = notifications.filter(n => {
-    if (n.type !== 'Reminder') return false;
-    const taskDate = new Date(n.scheduledTime);
-    return taskDate.toDateString() === selectedDate.toDateString();
-  });
   
-  // Pending Tasks count is still based on ALL unread reminders or just today? Let's keep it based on all unread reminders for the stat card.
-  const allReminders = notifications.filter(n => n.type === 'Reminder');
-  const pendingTasksCount = allReminders.filter(n => n.unread).length;
+  // Agri-specific state
+  const [agriTip, setAgriTip] = useState("Check soil moisture levels before evening irrigation to conserve water.");
+  const [reminder, setReminder] = useState(null);
+  const [news, setNews] = useState([]);
+  const [newsLoading, setNewsLoading] = useState(true);
+  const [quickAccessModal, setQuickAccessModal] = useState(null);
+  
+  const QUICK_ACTIONS = [
+    { icon: Bot, label: "Vani Settings", action: () => navigate('/settings/voice') },
+    { icon: Leaf, label: "Crops", action: () => setQuickAccessModal('Crops') },
+    { icon: CloudSun, label: "Weather", action: () => setQuickAccessModal('Weather') },
+    { icon: TrendingUp, label: "Growth", action: () => setQuickAccessModal('Growth') },
+    { icon: Droplets, label: "Irrigation", action: () => setQuickAccessModal('Irrigation') },
+    { icon: ShieldCheck, label: "Pest & Disease", action: () => setQuickAccessModal('Pest & Disease') },
+    { icon: Activity, label: "Livestock", href: "/livestock" },
+    { icon: ShoppingCart, label: "Market", action: () => setQuickAccessModal('Market Prices') },
+    { icon: Users, label: "Community", href: "/community" },
+    { icon: Wrench, label: "Tools", href: "/store" },
+  ];
+
+  useEffect(() => {
+    // Mock fetching a reminder
+    setReminder({
+      title: "Fertilize Wheat Crop",
+      type: "Task",
+      date: new Date().toLocaleDateString()
+    });
+
+    // Fetch AI-generated agri news
+    const loadNews = async () => {
+      try {
+        const fetchedNews = await fetchNews(profile?.location || "India", profile?.crops || ["Wheat", "Rice"], 'en');
+        if (fetchedNews && fetchedNews.length > 0) {
+          // Display the top 3 news articles on the dashboard
+          setNews(fetchedNews.slice(0, 3));
+        }
+      } catch (err) {
+        console.error("Error loading news:", err);
+      } finally {
+        setNewsLoading(false);
+      }
+    };
+    
+    loadNews();
+  }, []);
+
+  const displayName = profile?.name || '';
+  const firstName = displayName.split(' ')[0] || 'Farmer';
+  const initials = displayName ? displayName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) : '🌿';
 
   return (
-    <div className="min-h-full bg-[#f4f7f5] text-slate-800 p-4 md:p-6 lg:p-8 flex flex-col gap-6 w-full">
-      
-      {/* Hero Banner Section */}
-      <div className="relative w-full h-[200px] md:h-[240px] rounded-3xl overflow-hidden shadow-sm border border-gray-100 flex flex-col justify-center px-6 md:px-10 z-0">
-        {/* Farm Background Image */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
-          style={{ backgroundImage: "url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=2832&auto=format&fit=crop')" }}
-        />
-        {/* Soft gradient overlay so text is readable */}
-        <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/80 to-transparent z-10" />
-        
-        <div className="relative z-20 max-w-xl">
-          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-slate-900 tracking-tight">
-            {t('dashboard.welcome_back', 'Welcome back, Farmer!')}
-          </h1>
-          <p className="text-slate-700 mt-2 text-sm md:text-base font-medium">
-            {t('dashboard.whats_happening', "Here's what's happening in your farm today.")}
-          </p>
-          <button 
-            onClick={() => startVaniSession({ intent: 'dashboard_help' })}
-            className="mt-6 flex items-center justify-center gap-2 bg-green-700 hover:bg-green-800 text-white px-5 py-2.5 rounded-full font-medium transition-colors shadow-md w-max"
-          >
-            <Mic className="w-5 h-5" />
-            <span>{t('dashboard.talk_to_vani', 'Talk to Vani')}</span>
-            <div className="flex gap-0.5 ml-1">
-              <span className="w-1 h-3 bg-white/60 rounded-full animate-pulse"></span>
-              <span className="w-1 h-4 bg-white rounded-full animate-pulse" style={{ animationDelay: '150ms' }}></span>
-              <span className="w-1 h-3 bg-white/60 rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></span>
-            </div>
-          </button>
-        </div>
-      </div>
-
-      {/* Quick Access Grid - Full Width at Top */}
-      <section className="mb-8 lg:mb-10">
-        <h2 className="text-xl font-bold text-slate-800 mb-4">{t('dashboard.quick_access')}</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-6">
-          {[
-            { label: t('dashboard.qa_crops', 'Crops'), icon: Leaf, color: 'text-green-600', ogLabel: 'Crops' },
-            { label: t('dashboard.qa_growth', 'Growth'), icon: Activity, color: 'text-orange-700', ogLabel: 'Growth' },
-            { label: t('dashboard.qa_irrigation', 'Irrigation'), icon: Droplet, color: 'text-blue-500', ogLabel: 'Irrigation' },
-            { label: t('dashboard.qa_fertilizer', 'Fertilizer'), icon: Leaf, color: 'text-green-500', ogLabel: 'Fertilizer' },
-            { label: t('dashboard.qa_pest', 'Pest & Disease'), icon: Bot, color: 'text-red-500', ogLabel: 'Pest & Disease' },
-            { label: t('dashboard.qa_market', 'Market Prices'), icon: TrendingUp, color: 'text-orange-500', ogLabel: 'Market Prices' },
-            { label: t('dashboard.qa_weather', 'Weather'), icon: CloudSun, color: 'text-blue-400', ogLabel: 'Weather' },
-            { label: t('dashboard.qa_more', 'More'), icon: MoreHorizontal, color: 'text-gray-400', ogLabel: 'More' },
-          ].map((item, i) => (
-            <button 
-              key={i} 
-              onClick={() => {
-                if (item.ogLabel === 'More') {
-                  navigate('/help');
-                } else {
-                  setQuickAccessType(item.ogLabel);
-                }
-              }}
-              className="bg-white flex flex-col items-center justify-center py-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all"
-            >
-              <item.icon className={`w-10 h-10 ${item.color} mb-3`} />
-              <span className="text-sm font-bold text-slate-700">{item.label}</span>
-            </button>
-          ))}
-        </div>
-      </section>
-
-
-      {/* Top Metrics Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 mb-8">
-        {/* Weather */}
-        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <CloudSun className="w-8 h-8 text-orange-400" />
-            <div className="text-right">
-              <h3 className="text-2xl font-bold text-slate-800">28°C</h3>
-              <p className="text-xs text-slate-500 font-medium">{t('dashboard.partly_cloudy', 'Partly Cloudy')}</p>
-            </div>
+    <>
+      {/* ── Header ── */}
+      <header className="flex justify-between items-center mb-7">
+        <div className="flex items-center gap-3">
+          <div className="h-11 w-11 rounded-full border-2 border-white shadow-sm overflow-hidden bg-green-600 flex items-center justify-center text-white font-bold text-sm">
+            {profile?.avatar ? (
+              <img 
+                src={profile.avatar} 
+                alt="Profile" 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.style.display = 'none';
+                  e.target.parentElement.innerHTML = initials || "FM";
+                }} 
+              />
+            ) : (
+              initials || "FM"
+            )}
           </div>
-          <div className="flex items-center justify-between text-[10px] sm:text-xs text-slate-600 border-t border-gray-50 pt-3">
-            <div className="flex flex-col gap-1"><span className="text-slate-400">{t('dashboard.humidity', 'Humidity')}</span><span className="font-semibold text-slate-800">60%</span></div>
-            <div className="flex flex-col gap-1"><span className="text-slate-400">{t('dashboard.wind', 'Wind')}</span><span className="font-semibold text-slate-800">18 km/h</span></div>
-            <div className="flex flex-col gap-1"><span className="text-slate-400">{t('dashboard.rain_chance', 'Rain Chance')}</span><span className="font-semibold text-slate-800">20%</span></div>
+          <div>
+            <p className="text-xs text-gray-400 font-medium">{t(getGreeting())}</p>
+            <h1 className="text-base font-bold text-gray-900">{firstName} 👋</h1>
           </div>
         </div>
+        <button 
+          onClick={() => navigate('/notifications')}
+          className="h-10 w-10 rounded-2xl bg-white border border-gray-100 shadow-sm flex items-center justify-center text-gray-500 relative hover:bg-gray-50 transition-colors"
+        >
+          <Bell className="h-4.5 w-4.5" style={{ width: 18, height: 18 }} />
+          {/* Unread dot */}
+          <span className="absolute top-2 right-2 w-2 h-2 bg-green-600 rounded-full" />
+        </button>
+      </header>
 
-        {/* Market Price */}
-        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="p-1.5 bg-green-50 text-green-600 rounded-md">
-              <ShoppingBag className="w-4 h-4" />
+      {/* ── Hero Heading ── */}
+      <motion.div 
+        initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+        className="mb-6"
+      >
+        <p className="text-sm text-gray-400 font-medium mb-1">{t("My Farm")}</p>
+        <h2 className="text-[28px] font-bold text-gray-900 leading-[1.2]">
+          {t("I Hope Your")} <span className="text-green-600">{t("Crops Are Thriving")}</span> {t("Today!")}
+        </h2>
+      </motion.div>
+
+      {/* ── Premium Aesthetic Promo Card ── */}
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4, delay: 0.05 }}
+        className="rounded-[2rem] p-6 mb-8 relative overflow-hidden shadow-2xl shadow-green-900/20 bg-gradient-to-br from-green-600 via-emerald-700 to-slate-900 flex flex-col justify-between min-h-[180px] border border-white/10"
+      >
+        {/* Glow Effects */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-green-400/20 rounded-full blur-3xl transform translate-x-1/3 -translate-y-1/3" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-emerald-500/30 rounded-full blur-3xl transform -translate-x-1/4 translate-y-1/4" />
+
+        {/* Abstract Floating Icons */}
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 w-32 h-32 pointer-events-none">
+          <motion.div animate={{ y: [-4, 4, -4], rotate: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 5, ease: "easeInOut" }} className="absolute top-0 right-4 w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 flex items-center justify-center shadow-lg transform rotate-12">
+            <CloudSun className="w-6 h-6 text-green-200" />
+          </motion.div>
+          <motion.div animate={{ y: [4, -4, 4], rotate: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 4, ease: "easeInOut", delay: 1 }} className="absolute bottom-2 left-0 w-14 h-14 bg-gradient-to-tr from-teal-400 to-green-500 rounded-full p-0.5 shadow-xl shadow-teal-500/30">
+            <div className="w-full h-full bg-slate-900/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+              <Droplets className="w-6 h-6 text-white fill-white/20" />
             </div>
-            <h3 className="text-sm font-bold text-slate-600">{t('dashboard.market_price', 'Market Price')}</h3>
-          </div>
-          <div className="flex items-baseline gap-1 mb-2">
-            <h2 className="text-3xl font-bold text-slate-800">₹2,350</h2>
-            <span className="text-sm font-medium text-slate-500">/Quintal</span>
-          </div>
-          <p className="text-sm font-bold text-green-500 flex items-center gap-1">
-            <TrendingUp className="w-4 h-4" />
-            6.8%
-          </p>
+          </motion.div>
+          <motion.div animate={{ scale: [1, 1.1, 1], opacity: [0.5, 1, 0.5] }} transition={{ repeat: Infinity, duration: 3 }} className="absolute top-1/2 left-1/2 w-4 h-4 rounded-full bg-teal-400 blur-sm" />
         </div>
 
-        {/* Soil Moisture */}
-        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
-          <div className="flex flex-col items-center justify-center w-full">
-            <Droplet className="w-6 h-6 text-blue-500 mb-2" />
-            <span className="text-sm font-bold text-slate-600 mb-1">{t('dashboard.soil_moisture', 'Soil Moisture')}</span>
-            <span className="text-2xl font-black text-slate-800">72%</span>
-            <span className="text-xs font-bold text-green-500">Good</span>
-            <div className="w-full mt-3">
-              <svg viewBox="0 0 200 40" className="w-full h-4 text-green-400 fill-transparent stroke-current stroke-[3]">
-                <path d="M0,20 C50,40 150,0 200,20" />
-              </svg>
+        <div className="relative z-10 w-[70%]">
+          <span className="inline-flex items-center gap-1.5 bg-white/10 text-teal-50 text-[10px] font-bold px-2.5 py-1 rounded-full mb-3 backdrop-blur-md border border-white/10 uppercase tracking-widest">
+            <Sparkles className="w-3 h-3 text-teal-300" /> {t("Smart Agriculture")}
+          </span>
+          <h3 className="text-2xl font-black text-white mb-4 leading-[1.15] tracking-tight">
+            {t("Consult Top")}<br />{t("Experts")} <span className="text-teal-300">{t("Instantly")}</span>
+          </h3>
+          <Link to="/farm-care" className="inline-flex items-center w-fit gap-2 bg-white text-emerald-900 text-sm font-bold px-5 py-2.5 rounded-full hover:bg-green-50 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-white/10">
+            {t("Get Advice")} <ArrowUpRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </motion.div>
+
+      {/* ── Explore Features ── */}
+      <motion.div 
+        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.08 }}
+        className="mb-8"
+      >
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-base font-bold text-gray-900">{t("Explore")}</h3>
+        </div>
+        <div className="grid grid-cols-5 gap-2.5 pb-2">
+          {QUICK_ACTIONS.map((action) => {
+            const Icon = action.icon;
+            const Wrapper = action.href ? Link : 'button';
+            const props = action.href ? { to: action.href } : { onClick: action.action };
+
+            return (
+              <Wrapper {...props} key={action.label} className="flex-1 flex items-center justify-center gap-1.5 bg-white border border-gray-100 hover:border-gray-200 hover:bg-gray-50 active:scale-95 text-gray-800 px-3 py-2.5 rounded-2xl text-[13px] font-bold whitespace-nowrap transition-all shadow-sm cursor-pointer">
+                <Icon className="w-4 h-4 shrink-0 text-green-600" />
+                {t(action.label)}
+              </Wrapper>
+            );
+          })}
+        </div>
+      </motion.div>
+
+      {/* ── Daily Vani Tip ── */}
+      <motion.div 
+        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.14 }}
+        className="mb-8"
+      >
+        <div className="flex justify-between items-end mb-4">
+          <div>
+            <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              {t("Daily Vani Tip")}
+            </h3>
+            <p className="text-xs text-gray-400 mt-0.5">{t("Your AI farming companion says:")}</p>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 rounded-3xl p-5 shadow-sm relative overflow-hidden">
+          <div className="absolute -right-4 -top-4 w-24 h-24 bg-amber-200/40 rounded-full blur-2xl" />
+          <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-orange-200/40 rounded-full blur-2xl" />
+          
+          <div className="flex gap-4 relative z-10">
+            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-amber-100">
+              <span className="text-xl">💡</span>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-amber-900 leading-relaxed">
+                {t(agriTip)}
+              </p>
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* AI Recommendations */}
-      <section className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-slate-800">{t('dashboard.ai_recommendations', 'AI Recommendations')}</h2>
-          <button onClick={() => navigate('/farm-care')} className="text-sm font-bold text-green-600 hover:text-green-700">{t('dashboard.view_all', 'View all')}</button>
+      {/* ── News ── */}
+      <motion.div 
+        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }}
+        className="mb-8"
+      >
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-base font-bold text-gray-900">{t("News")}</h3>
+          <Link to="/news" className="text-[13px] text-green-600 font-bold flex items-center gap-0.5">
+            {t("View all")} <ArrowUpRight className="w-3.5 h-3.5" />
+          </Link>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-5 border border-green-100 shadow-sm flex flex-col md:flex-row gap-4 items-start md:items-center cursor-pointer hover:shadow-md transition-shadow">
-            <div className="w-12 h-12 bg-green-100 text-green-600 rounded-xl flex items-center justify-center shrink-0">
-              <Leaf className="w-6 h-6" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="font-bold text-slate-800">{t('dashboard.apply_urea', 'Apply Urea (46% N)')}</h3>
-                <span className="px-2 py-0.5 bg-green-200 text-green-800 rounded text-[10px] font-bold uppercase tracking-wide">In 2 Days</span>
+
+        {newsLoading ? (
+          <div className="space-y-3">
+            {[1,2].map(i => (
+              <div key={i} className="bg-white rounded-2xl p-4 animate-pulse border border-gray-100">
+                <div className="h-2 bg-gray-100 rounded w-1/5 mb-2.5" />
+                <div className="h-3 bg-gray-100 rounded w-4/5 mb-1.5" />
               </div>
-              <p className="text-sm text-slate-600">{t('dashboard.urea_desc', 'Best time to apply fertilizer.')}</p>
-            </div>
-            <button 
-              onClick={() => navigate('/fertilisers')}
-              className="w-full md:w-auto px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-colors shadow-sm whitespace-nowrap"
-            >
-              {t('dashboard.view_details', 'View Details')}
-            </button>
+            ))}
           </div>
+        ) : news.length > 0 ? (
+          <div className="space-y-3">
+            {news.map((item, idx) => (
+              <a key={idx} href={item.url || '#'} target="_blank" rel="noopener noreferrer" className="bg-white rounded-[1.5rem] p-5 flex flex-col gap-2 shadow-[0_2px_15px_rgb(0,0,0,0.03)] border border-gray-100 hover:shadow-md transition-all active:scale-[0.98] group">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <span className="inline-flex items-center justify-center bg-green-50 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider mb-2">{item.source || t('AgriNews')}</span>
+                    <h4 className="text-[14px] font-bold text-gray-900 leading-snug group-hover:text-green-600 transition-colors">{item.headline || item.title}</h4>
+                  </div>
+                </div>
+                {(item.summary || item.description) && (
+                  <p className="text-[12px] text-gray-600 line-clamp-2 mt-1 leading-relaxed">{item.summary || item.description}</p>
+                )}
+                <div className="flex items-center justify-between mt-2 pt-3 border-t border-gray-50/80">
+                  <span className="text-[11px] text-gray-400 font-medium flex items-center gap-1.5"><CalendarPlus className="w-3 h-3 text-gray-300" /> {item.date || new Date().toLocaleDateString()}</span>
+                  <span className="text-[11px] text-green-600 font-bold flex items-center gap-1">{t("Read Article")} <ArrowUpRight className="w-3 h-3" /></span>
+                </div>
+              </a>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white rounded-[1.5rem] p-5 text-center border border-gray-100">
+            <Newspaper className="w-7 h-7 text-gray-200 mx-auto mb-3" />
+            <p className="text-[15px] font-bold text-gray-800">{t("Powered by Vani AI")}</p>
+            <p className="text-[13px] text-gray-500 mt-1 font-medium">{t("AI is analyzing agriculture news")}</p>
+          </div>
+        )}
+      </motion.div>
 
-          <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl p-5 border border-orange-100 shadow-sm flex flex-col md:flex-row gap-4 items-start md:items-center cursor-pointer hover:shadow-md transition-shadow">
-            <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center shrink-0">
-              <Bot className="w-6 h-6" />
+      {/* ── Reminders (Replaces Recent Appointments) ── */}
+      <motion.div 
+        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.11 }}
+        className="mb-4"
+      >
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-base font-bold text-gray-900">{t("Reminders")}</h3>
+        </div>
+
+        {reminder ? (
+          <Link to="/crops" className="bg-white rounded-[1.5rem] p-4 flex gap-4 items-center shadow-[0_2px_15px_rgb(0,0,0,0.03)] border border-gray-100 hover:shadow-md transition-all block relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-16 h-16 bg-green-50 rounded-bl-[4rem] -z-10" />
+            
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 bg-green-50 text-green-600 shadow-sm">
+              <CalendarPlus className="w-6 h-6" />
             </div>
+
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="font-bold text-slate-800">{t('dashboard.bph_risk', 'Brown Plant Hopper Risk')}</h3>
-                <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-[10px] font-bold uppercase tracking-wide">High Risk</span>
+              <h4 className="font-bold text-gray-900 text-[15px]">{reminder.title}</h4>
+              <p className="text-[13px] text-green-600 font-bold mt-0.5">{reminder.type}</p>
+              <div className="flex items-center gap-1 mt-1.5 opacity-60">
+                <CalendarPlus className="w-3.5 h-3.5 text-gray-500" />
+                <span className="text-[11px] text-gray-500 font-bold">{reminder.date}</span>
               </div>
-              <p className="text-sm text-slate-600">{t('dashboard.bph_desc', 'High risk detected in your area.')}</p>
             </div>
-            <button 
-              onClick={() => navigate('/farm-care/pest-disease')}
-              className="w-full md:w-auto px-4 py-2 bg-white text-orange-700 border border-orange-200 rounded-xl text-sm font-bold hover:bg-orange-50 transition-colors shadow-sm whitespace-nowrap"
-            >
-              {t('dashboard.view_details', 'View Details')}
-            </button>
-          </div>
-        </div>
-      </section>
+            <div className="shrink-0 text-center z-10">
+              <div className="w-10 h-10 bg-[#12121e] rounded-full flex items-center justify-center mx-auto shadow-lg hover:scale-110 transition-transform">
+                <ArrowUpRight className="w-4 h-4 text-green-400" />
+              </div>
+            </div>
+          </Link>
+        ) : (
+          <Link to="/crops" className="bg-white rounded-[1.5rem] p-6 border border-dashed border-gray-300 text-center block hover:bg-gray-50 transition-colors">
+            <CalendarPlus className="w-8 h-8 text-teal-400 mx-auto mb-3" />
+            <p className="text-[15px] font-bold text-gray-900">{t("Add a Task")}</p>
+            <p className="text-[12px] text-gray-500 mt-1">{t("Schedule activities for your crops")}</p>
+          </Link>
+        )}
+      </motion.div>
 
-      {/* Daily Expert Tip (Full Width Bottom) */}
-      <section className="mb-6">
-        <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 rounded-[24px] p-6 lg:p-8 border border-green-500/20 shadow-sm relative overflow-hidden flex flex-col md:flex-row items-center gap-6">
-          <div className="absolute -top-10 -right-10 p-4 opacity-5 pointer-events-none">
-            <Leaf className="w-48 h-48 text-green-900" />
-          </div>
-          <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center shrink-0 border border-green-100 text-green-600">
-            <Sprout className="w-8 h-8" />
-          </div>
-          <div className="flex-1 text-center md:text-left z-10">
-            <h2 className="text-xl font-bold text-slate-800 mb-2">{t('dashboard.tip_title', 'Daily Expert Tip: Enhance Soil Nutrient Retention')}</h2>
-            <p className="text-slate-600 leading-relaxed max-w-3xl mx-auto md:mx-0">
-              {t('dashboard.tip_desc', 'Applying organic mulch before the rainy season helps retain soil moisture and slowly releases nutrients, reducing the need for synthetic fertilizers by up to 20%.')}
-            </p>
-          </div>
-          <button 
-            onClick={() => navigate('/ai-learning')} 
-            className="shrink-0 px-6 py-3 bg-white text-green-700 font-bold rounded-xl border border-green-200 hover:bg-green-50 transition-colors shadow-sm whitespace-nowrap"
-          >
-            {t('dashboard.read_more_tips', 'Read More Tips')}
-          </button>
-        </div>
-      </section>
-
-      
-      {/* Modals & Audio */}
-      <CropQuickViewModal 
-        isOpen={!!selectedCrop} 
-        onClose={() => setSelectedCrop(null)} 
-        crop={selectedCrop} 
-      />
-      <DashboardQuickAccessModal
-        type={quickAccessType}
-        onClose={() => setQuickAccessType(null)}
-      />
-      <audio ref={audioRef} />
-
-    </div>
+      <DashboardQuickAccessModal type={quickAccessModal} onClose={() => setQuickAccessModal(null)} />
+    </>
   );
 }

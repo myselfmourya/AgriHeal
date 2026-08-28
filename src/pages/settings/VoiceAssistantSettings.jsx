@@ -12,8 +12,8 @@ export default function VoiceAssistantSettings() {
   const Toggle = ({ label, checked, onChange, subtitle, disabled = false }) => (
     <div className={`flex justify-between items-center py-3 ${disabled ? 'opacity-40 pointer-events-none' : ''}`}>
       <div className="flex flex-col">
-        <span className="text-zinc-900 font-bold">{label}</span>
-        {subtitle && <span className="text-zinc-500 text-xs">{subtitle}</span>}
+        <span className="text-gray-900 font-bold">{label}</span>
+        {subtitle && <span className="text-gray-400 text-xs">{subtitle}</span>}
       </div>
       <button
         onClick={() => onChange(!checked)}
@@ -70,34 +70,30 @@ export default function VoiceAssistantSettings() {
             />
           </div>
 
-          {/* Voice Speed */}
+          {/* Vani Language */}
           <div className="border-b border-gray-100 py-3">
-            <div className="flex justify-between mb-2">
-              <span className="font-bold text-zinc-900">Speech Speed</span>
-              <span className="text-zinc-500 text-sm font-bold">
-                {voiceAssistant.voiceSpeed === 1.0 ? 'Normal' : `${voiceAssistant.voiceSpeed}x`}
-              </span>
+            <div className="flex flex-col mb-2">
+              <span className="font-bold text-gray-900">Vani Language</span>
+              <span className="text-gray-400 text-xs">Choose the language Vani speaks and understands</span>
             </div>
-            <input
-              type="range"
-              min="0.5"
-              max="2"
-              step="0.1"
-              value={voiceAssistant.voiceSpeed}
-              onChange={(e) => updateSetting('voiceAssistant', 'voiceSpeed', parseFloat(e.target.value))}
-              className="w-full accent-green-600"
-            />
-            <div className="flex justify-between text-xs text-gray-400 mt-1">
-              <span>0.5× Slow</span>
-              <span>2× Fast</span>
-            </div>
+            <select
+              value={voiceAssistant.vaniLanguage || 'auto'}
+              onChange={(e) => updateSetting('voiceAssistant', 'vaniLanguage', e.target.value)}
+              className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block p-2.5 font-medium"
+            >
+              <option value="auto">Auto (Match App Language)</option>
+              <option value="en">English</option>
+              <option value="hi">Hindi (हिन्दी)</option>
+              <option value="te">Telugu (తెలుగు)</option>
+              <option value="ta">Tamil (தமிழ்)</option>
+            </select>
           </div>
 
           {/* Volume */}
           <div className="border-b border-gray-100 py-3">
             <div className="flex justify-between mb-2">
-              <span className="font-bold text-zinc-900">Assistant Volume</span>
-              <span className="text-zinc-500 text-sm font-bold">{voiceAssistant.voiceVolume}%</span>
+              <span className="font-bold text-gray-900">Assistant Volume</span>
+              <span className="text-gray-400 text-sm font-bold">{voiceAssistant.voiceVolume}%</span>
             </div>
             <input
               type="range"
@@ -120,17 +116,7 @@ export default function VoiceAssistantSettings() {
             />
           </div>
 
-          {/* Test Voice — uses real speak() so speed/volume are live */}
-          <button
-            onClick={handleTestVoice}
-            disabled={isTestingVoice}
-            className="w-full mt-3 py-3 bg-green-700 text-white font-bold rounded-xl
-                       hover:bg-green-800 active:scale-95 disabled:opacity-60 transition-all
-                       flex items-center justify-center gap-2"
-          >
-            <Mic className={`w-4 h-4 ${isTestingVoice ? 'animate-pulse' : ''}`} />
-            {isTestingVoice ? 'Speaking...' : '🔊 Test Vani Voice'}
-          </button>
+
 
         </div>
       </div>

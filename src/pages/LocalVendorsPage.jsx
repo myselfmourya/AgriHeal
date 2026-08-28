@@ -115,10 +115,7 @@ export default function LocalVendorsPage() {
 
   return (
     <div className="pb-24 bg-[#f4f7f5] min-h-screen relative flex flex-col">
-      <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center gap-2 text-amber-800 text-sm">
-        <span>⚠️</span>
-        <span><strong>Vendor directory is coming soon.</strong> Listed vendors are placeholder entries.</span>
-      </div>
+
 
       {/* Header */}
       <div className="bg-white px-4 sm:px-6 py-4 border-b border-gray-100 z-30 shadow-sm shrink-0">

@@ -125,7 +125,7 @@ export default function DashboardQuickAccessModal({ type, onClose }) {
                  </div>
                </div>
             </div>
-            <button onClick={() => { onClose(); navigate('/scan'); }} className="w-full py-3 bg-red-50 text-red-700 font-bold rounded-xl text-sm">
+            <button onClick={() => { onClose(); navigate('/assistant'); }} className="w-full py-3 bg-red-50 text-red-700 font-bold rounded-xl text-sm">
                Run AgriShield Scan
             </button>
           </div>

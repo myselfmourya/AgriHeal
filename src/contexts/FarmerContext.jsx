@@ -1,140 +1,221 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
+import { useAuth } from './AuthContext'
 
 const FarmerContext = createContext(null)
 
 const DEFAULT_PROFILE = {
-  name: 'Ravi Kumar', village: 'Narsampet', district: 'Warangal',
-  state: 'Telangana', phone: '+91-9876543210', language: 'te',
-  farmSize: '3.5 acres', crops: ['Rice', 'Cotton', 'Pearl Millet'],
-  livestock: ['2 Cows', '1 Buffalo', '3 Goats'],
-  experience: '12 years', avatar: 'RK',
-  lat: 17.9784, lon: 79.5941,
-  safetyScore: 82, healthScore: 85,
-  schemes: ['PM-KISAN', 'Ayushman Bharat'],
-  joined: '2024-01-15',
+  name: '', village: '', district: '',
+  state: '', phone: '', language: 'en',
+  farmSize: '', crops: [],
+  livestock: [],
+  experience: '', avatar: '',
+  lat: null, lon: null,
+  safetyScore: 80, healthScore: 80,
+  schemes: [],
+  joined: '',
+}
+
+const DEFAULT_CROP_DETAILS = {
+  growth: { status: 'Average', height: 'N/A', leafAreaIndex: 2.0, biomass: 'N/A', rootDevelopment: 'Average', tillering: 'N/A' },
+  irrigation: { moisture: 50, moistureStatus: 'Moderate', recommendation: 'Monitor moisture', nextIrrigation: 'Check in 2 days', method: 'Drip', source: 'Borewell', usageThisWeek: '2,000 L' },
+  fertilizer: { status: 'Average', nitrogen: 'Adequate', phosphorus: 'Adequate', potassium: 'Adequate', sulphur: 'Adequate', zinc: 'Adequate', recommendation: [] },
+  pest: { overallRisk: 'Low', observations: [] },
+  soil: { score: 75, ph: 7.0, carbon: 0.6, nitrogen: 200, phosphorus: 20, potassium: 180 },
+  yield: { expectedYield: 0, totalYield: 0, price: 0, revenue: 0 },
+  expenses: { total: 0, breakdown: { Fertilizer: 0, Seeds: 0, Pesticides: 0, Labor: 0, Others: 0 } },
+  inputs: [],
+  calendar: []
 }
 
 export function FarmerProvider({ children }) {
-  const [profile, setProfile] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('ah-profile')) || DEFAULT_PROFILE }
-    catch { return DEFAULT_PROFILE }
-  })
-  const [cropHistory, setCropHistory] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('ah-crop-history')) || [] }
-    catch { return [] }
-  })
-  
-  const [myCrops, setMyCrops] = useState(() => {
-    try { 
+  const { user, isAuthenticated } = useAuth()
+  const [profile, setProfile] = useState({ ...DEFAULT_PROFILE })
+  const [myCrops, setMyCrops] = useState([])
+  const [cropHistory, setCropHistory] = useState([])
+  const [notifications, setNotifications] = useState([])
+  const [marketFavorites, setMarketFavorites] = useState(['Paddy', 'Tomato'])
+  const [isLoading, setIsLoading] = useState(true)
+
+  const loadFarmerProfile = async () => {
+    try {
+      const saved = localStorage.getItem('ah-farmer-profile');
+      if (saved) return JSON.parse(saved);
+    } catch(e) {}
+    if (!user?.id) return null;
+    const { data: farmer } = await supabase.from('farmers').select('*').eq('id', user.id).single();
+    return farmer;
+  };
+
+  // Called after ProfileSettings saves — refreshes profile across app
+  const refreshProfile = async () => {
+    const farmer = await loadFarmerProfile();
+    if (farmer) {
+      setProfile(prev => ({
+        ...prev,
+        id: farmer.id,
+        name: farmer.full_name || user?.email?.split('@')[0] || 'Farmer',
+        village: farmer.village || '',
+        district: farmer.district || '',
+        state: farmer.state || '',
+        phone: farmer.phone || '',
+        farmSize: farmer.farm_size_acres ? `${farmer.farm_size_acres} acres` : '',
+        experience: farmer.experience_years ? `${farmer.experience_years} years` : '',
+      }));
+    }
+  };
+
+  useEffect(() => {
+    const fetchSupabaseData = async () => {
+      try {
+        if (!isAuthenticated || !user) {
+          setIsLoading(false);
+          return;
+        }
+
+        // Fetch Profile
+        const farmer = await loadFarmerProfile();
+        let currentFarmerId = null;
+        
+        if (farmer) {
+          currentFarmerId = farmer.id;
+          setProfile(prev => ({
+            ...prev,
+            id: farmer.id,
+            name: farmer.full_name || user?.email?.split('@')[0] || 'Farmer',
+            village: farmer.village || '',
+            district: farmer.district || '',
+            state: farmer.state || '',
+            phone: farmer.phone || '',
+            farmSize: farmer.farm_size_acres ? `${farmer.farm_size_acres} acres` : '',
+            experience: farmer.experience_years ? `${farmer.experience_years} years` : '',
+          }));
+        } else {
+          // No farmer row yet — use email username as display name
+          setProfile(prev => ({
+            ...prev,
+            id: user.id,
+            name: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Farmer',
+          }));
+          currentFarmerId = user.id;
+        }
+
+        // Fetch Crops
+        if (currentFarmerId) {
+          const { data: cropsData, error: cropsError } = await supabase.from('crops').select('*').eq('farmer_id', currentFarmerId)
+          if (cropsData && cropsData.length > 0) {
+            const mappedCrops = cropsData.map(c => ({
+              id: c.id,
+              name: c.name,
+              emoji: c.emoji || '🌿',
+              area: c.area_acres || 1.0,
+              stage: c.stage || 'Vegetative',
+              health: c.health_score || 80,
+              daysSinceSowing: c.days_since_sowing || 30,
+              daysLeftToHarvest: 60,
+              expectedHarvest: c.expected_harvest || '20 Quintal',
+              progress: 50,
+              aiAdvice: c.ai_advice || 'Crop is growing well.',
+              image: c.image_url || 'https://images.unsplash.com/photo-1596704104273-5a02e6044719?auto=format&fit=crop&q=80&w=800',
+              ...DEFAULT_CROP_DETAILS
+            }))
+            setMyCrops(mappedCrops)
+          } else {
+            setMyCrops(getMockCrops())
+          }
+        } else {
+           setMyCrops(getMockCrops())
+        }
+
+        // Load notifications from local storage as fallback
+        const savedNotifs = localStorage.getItem('ah-notifications')
+        if (savedNotifs) {
+          setNotifications(JSON.parse(savedNotifs))
+        } else {
+          setNotifications([
+            { id: 1, title: 'Rice Blast Alert', message: 'High risk of Rice Blast detected in your area.', type: 'Critical', category: 'Crop', time: '2h ago', group: 'Today', unread: true },
+            { id: 2, title: 'Vaccination Due', message: 'Cattle needs FMD vaccination.', type: 'Reminder', category: 'Livestock', time: '5h ago', group: 'Today', unread: true }
+          ])
+        }
+
+      } catch (e) {
+        console.error("Supabase fetch error:", e)
+        setMyCrops(getMockCrops())
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    fetchSupabaseData()
+  }, [user, isAuthenticated])
+
+  const getMockCrops = () => {
+    try {
       const saved = localStorage.getItem('ah-my-crops')
-      return saved ? JSON.parse(saved) : [
+      if (saved) return JSON.parse(saved)
+    } catch {}
+    return [
         { 
           id: 1, name: 'Paddy', emoji: '🌾', area: 5.0, stage: 'Flowering', health: 92, daysSinceSowing: 32, daysLeftToHarvest: 88, expectedHarvest: '110 Quintal', progress: 26, aiAdvice: 'Irrigation not needed today. Paddy crop is healthy.',
           image: 'https://images.unsplash.com/photo-1595841696677-6489ff3f8cd1?auto=format&fit=crop&q=80&w=800',
-          growth: {
-            status: 'Good', height: '85 cm', leafAreaIndex: 3.2, biomass: '+12%', rootDevelopment: 'Healthy', tillering: '18 tillers/m²',
-          },
-          irrigation: {
-            moisture: 72, moistureStatus: 'Good', recommendation: 'No irrigation needed', nextIrrigation: 'In 2 Days', method: 'Drip Irrigation', source: 'Borewell', usageThisWeek: '12,450 L'
-          },
-          fertilizer: {
-            status: 'Good', nitrogen: 'Adequate', phosphorus: 'Adequate', potassium: 'Slightly Low', sulphur: 'Adequate', zinc: 'Adequate',
-            recommendation: [{ name: 'Urea (46% N)', qty: '20 kg/acre', time: 'Apply in 3 days' }, { name: 'MOP (60% K2O)', qty: '10 kg/acre', time: 'Apply in 5 days' }]
-          },
-          pest: {
-            overallRisk: 'Low', observations: [{ name: 'Leaf Blast', risk: 'Low' }, { name: 'Brown Plant Hopper', risk: 'Low' }, { name: 'Stem Borer', risk: 'Low' }, { name: 'Leaf Folder', risk: 'Low' }]
-          },
+          growth: { status: 'Good', height: '85 cm', leafAreaIndex: 3.2, biomass: '+12%', rootDevelopment: 'Healthy', tillering: '18 tillers/m²' },
+          irrigation: { moisture: 72, moistureStatus: 'Good', recommendation: 'No irrigation needed', nextIrrigation: 'In 2 Days', method: 'Drip Irrigation', source: 'Borewell', usageThisWeek: '12,450 L' },
+          fertilizer: { status: 'Good', nitrogen: 'Adequate', phosphorus: 'Adequate', potassium: 'Slightly Low', sulphur: 'Adequate', zinc: 'Adequate', recommendation: [{ name: 'Urea (46% N)', qty: '20 kg/acre', time: 'Apply in 3 days' }, { name: 'MOP (60% K2O)', qty: '10 kg/acre', time: 'Apply in 5 days' }] },
+          pest: { overallRisk: 'Low', observations: [{ name: 'Leaf Blast', risk: 'Low' }, { name: 'Brown Plant Hopper', risk: 'Low' }, { name: 'Stem Borer', risk: 'Low' }, { name: 'Leaf Folder', risk: 'Low' }] },
           soil: { score: 85, ph: 6.8, carbon: 0.75, nitrogen: 290, phosphorus: 22, potassium: 210 },
           yield: { expectedYield: 22, totalYield: 110, price: 2350, revenue: 258500 },
           expenses: { total: 18450, breakdown: { Fertilizer: 40, Seeds: 20, Pesticides: 15, Labor: 15, Others: 10 } },
           inputs: [
             { id: 101, type: 'Fertilizer', name: 'Urea (46% N)', qty: '20 kg/acre', date: '25 Apr 2025' },
-            { id: 102, type: 'Fertilizer', name: 'DAP (18:46:0)', qty: '15 kg/acre', date: '10 Apr 2025' },
-            { id: 103, type: 'Fertilizer', name: 'MOP (60% K2O)', qty: '10 kg/acre', date: '5 Apr 2025' },
-            { id: 104, type: 'Fertilizer', name: 'Zinc Sulphate', qty: '5 kg/acre', date: '20 Mar 2025' },
+            { id: 102, type: 'Fertilizer', name: 'DAP (18:46:0)', qty: '15 kg/acre', date: '10 Apr 2025' }
           ],
-          calendar: [
-            { id: 201, task: 'Land Preparation', date: '1 - 15 Jun', status: 'Upcoming' },
-            { id: 202, task: 'Sowing / Transplanting', date: '16 - 30 Jun', status: 'Upcoming' },
-            { id: 203, task: 'Top Dressing', date: '25 Jul - 5 Aug', status: 'Upcoming' },
-            { id: 204, task: 'Flowering', date: '16 - 30 Sep', status: 'Upcoming' },
-            { id: 205, task: 'Harvesting', date: '20 - 30 Oct', status: 'Upcoming' },
-          ]
-        },
-        { 
-          id: 2, name: 'Cotton', emoji: '🌿', area: 3.0, stage: 'Vegetative', health: 86, daysSinceSowing: 72, daysLeftToHarvest: 108, expectedHarvest: '30 Quintal', progress: 40, aiAdvice: 'Watch out for pink bollworm.',
-          image: 'https://images.unsplash.com/photo-1596704104273-5a02e6044719?auto=format&fit=crop&q=80&w=800',
-          growth: { status: 'Average', height: '110 cm', leafAreaIndex: 2.8, biomass: '+5%', rootDevelopment: 'Average', tillering: 'N/A' },
-          irrigation: { moisture: 45, moistureStatus: 'Low', recommendation: 'Irrigate tomorrow', nextIrrigation: 'Tomorrow', method: 'Furrow', source: 'Canal', usageThisWeek: '8,000 L' },
-          fertilizer: { status: 'Average', nitrogen: 'Low', phosphorus: 'Adequate', potassium: 'Adequate', sulphur: 'Adequate', zinc: 'Low', recommendation: [] },
-          pest: { overallRisk: 'High', observations: [{ name: 'Pink Bollworm', risk: 'High' }] },
-          soil: { score: 70, ph: 7.2, carbon: 0.5, nitrogen: 180, phosphorus: 18, potassium: 150 },
-          yield: { expectedYield: 10, totalYield: 30, price: 7000, revenue: 210000 },
-          expenses: { total: 12000, breakdown: { Fertilizer: 30, Seeds: 25, Pesticides: 30, Labor: 10, Others: 5 } },
-          inputs: [], calendar: []
-        },
-        { 
-          id: 3, name: 'Tomato', emoji: '🍅', area: 1.5, stage: 'Fruiting', health: 89, daysSinceSowing: 60, daysLeftToHarvest: 18, expectedHarvest: '45 Quintal', progress: 77, aiAdvice: 'Ready for first picking in 5 days.',
-          image: 'https://images.unsplash.com/photo-1592841200221-a6898f307baa?auto=format&fit=crop&q=80&w=800',
-          growth: { status: 'Good', height: '65 cm', leafAreaIndex: 3.5, biomass: '+18%', rootDevelopment: 'Good', tillering: 'N/A' },
-          irrigation: { moisture: 65, moistureStatus: 'Optimal', recommendation: 'Maintain schedule', nextIrrigation: 'Today', method: 'Drip', source: 'Borewell', usageThisWeek: '4,500 L' },
-          fertilizer: { status: 'Good', nitrogen: 'Adequate', phosphorus: 'Adequate', potassium: 'High', sulphur: 'Adequate', zinc: 'Adequate', recommendation: [] },
-          pest: { overallRisk: 'Medium', observations: [{ name: 'Fruit Borer', risk: 'Medium' }] },
-          soil: { score: 82, ph: 6.5, carbon: 0.8, nitrogen: 240, phosphorus: 30, potassium: 250 },
-          yield: { expectedYield: 30, totalYield: 45, price: 1500, revenue: 67500 },
-          expenses: { total: 8000, breakdown: { Fertilizer: 20, Seeds: 15, Pesticides: 20, Labor: 35, Others: 10 } },
-          inputs: [], calendar: []
-        },
-      ]
-    } catch { return [] }
-  })
+          calendar: []
+        }
+    ]
+  }
 
-  const [notifications, setNotifications] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ah-notifications')
-      return saved ? JSON.parse(saved) : [
-        { id: 1, title: 'Rice Blast Alert', message: 'High risk of Rice Blast detected in your area.', type: 'Critical', category: 'Crop', time: '2h ago', group: 'Today', unread: true },
-        { id: 2, title: 'Vaccination Due - Lakshmi Cow', message: 'Lakshmi Cow needs FMD vaccination.', type: 'Reminder', category: 'Livestock', time: '5h ago', group: 'Today', unread: true, scheduledTime: new Date(Date.now() + 86400000).toISOString() },
-        { id: 3, title: 'Cotton Price Up 12%', message: 'Cotton prices have increased at the local mandi.', type: 'Info', category: 'Market', time: '1d ago', group: 'Yesterday', unread: false }
-      ]
-    } catch { return [] }
-  })
-
-  const [marketFavorites, setMarketFavorites] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ah-market-favorites')
-      return saved ? JSON.parse(saved) : ['Paddy', 'Tomato']
-    } catch { return ['Paddy', 'Tomato'] }
-  })
-
-  const updateProfile = (data) => {
+  const updateProfile = async (data) => {
     const updated = { ...profile, ...data }
     setProfile(updated)
-    localStorage.setItem('ah-profile', JSON.stringify(updated))
+    if (profile.id) {
+       await supabase.from('farmers').update({ full_name: updated.name, village: updated.village }).eq('id', profile.id)
+    }
   }
 
   const addDiagnosis = (diagnosis) => {
     const updated = [{ ...diagnosis, id: Date.now() }, ...cropHistory].slice(0, 50)
     setCropHistory(updated)
-    localStorage.setItem('ah-crop-history', JSON.stringify(updated))
   }
 
-  const addMyCrop = (crop) => {
-    const updated = [...myCrops, { id: Date.now(), ...crop }]
+  const addMyCrop = async (crop) => {
+    const newCrop = { id: Date.now(), ...crop, ...DEFAULT_CROP_DETAILS }
+    const updated = [...myCrops, newCrop]
     setMyCrops(updated)
-    localStorage.setItem('ah-my-crops', JSON.stringify(updated))
+    
+    if (profile.id) {
+      await supabase.from('crops').insert([{
+        farmer_id: profile.id,
+        name: crop.name,
+        emoji: crop.emoji || '🌱',
+        area_acres: crop.area,
+        stage: crop.stage,
+        health_score: crop.health || 100,
+        days_since_sowing: crop.daysSinceSowing || 0
+      }])
+    }
   }
 
   const updateMyCrop = (cropId, updatedFields) => {
     const updated = myCrops.map(c => c.id === cropId ? { ...c, ...updatedFields } : c)
     setMyCrops(updated)
-    localStorage.setItem('ah-my-crops', JSON.stringify(updated))
   }
 
-  const deleteMyCrop = (cropId) => {
+  const deleteMyCrop = async (cropId) => {
     const updated = myCrops.filter(c => c.id !== cropId)
     setMyCrops(updated)
-    localStorage.setItem('ah-my-crops', JSON.stringify(updated))
+    if (typeof cropId === 'string') { // Assuming uuid from supabase
+      await supabase.from('crops').delete().eq('id', cropId)
+    }
   }
 
   const markNotificationRead = (id) => {
@@ -170,7 +251,6 @@ export function FarmerProvider({ children }) {
   const toggleMarketFavorite = (cropName) => {
     setMarketFavorites(prev => {
       const updated = prev.includes(cropName) ? prev.filter(c => c !== cropName) : [...prev, cropName]
-      localStorage.setItem('ah-market-favorites', JSON.stringify(updated))
       return updated
     })
   }
@@ -179,11 +259,12 @@ export function FarmerProvider({ children }) {
 
   return (
     <FarmerContext.Provider value={{
-      profile, updateProfile,
+      profile, updateProfile, refreshProfile,
       cropHistory, addDiagnosis,
       myCrops, addMyCrop, updateMyCrop, deleteMyCrop,
       notifications, markNotificationRead, markAllNotificationsRead, addNotification, updateNotification, deleteNotification,
       marketFavorites, toggleMarketFavorite, unreadCount,
+      isLoading
     }}>
       {children}
     </FarmerContext.Provider>

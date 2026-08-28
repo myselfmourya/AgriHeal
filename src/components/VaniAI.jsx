@@ -46,6 +46,8 @@ export default function VaniAI({ onNavigate }) {
   const synthesisRef = window.speechSynthesis;
   const messagesEndRef = useRef(null);
 
+  const isSpeakingRef = useRef(false);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, transcript]);
@@ -82,7 +84,9 @@ export default function VaniAI({ onNavigate }) {
       };
 
       recognitionRef.current.onend = () => {
-        if (isListening) recognitionRef.current.start();
+        if (isListening) {
+          try { recognitionRef.current.start(); } catch(e){}
+        }
       };
     }
 
@@ -103,7 +107,7 @@ export default function VaniAI({ onNavigate }) {
       setTranscript('');
     } else {
       setTranscript('');
-      recognitionRef.current?.start();
+      try { recognitionRef.current?.start(); } catch(e){}
       setIsListening(true);
     }
   };
@@ -111,6 +115,7 @@ export default function VaniAI({ onNavigate }) {
   const stopSpeaking = () => {
     synthesisRef.cancel();
     setIsSpeaking(false);
+    isSpeakingRef.current = false;
   };
 
   const speak = (text) => {
@@ -120,9 +125,22 @@ export default function VaniAI({ onNavigate }) {
     chunks.forEach((chunk, index) => {
       const utterance = new SpeechSynthesisUtterance(chunk.trim());
       utterance.lang = currentLang;
-      if (index === 0) utterance.onstart = () => setIsSpeaking(true);
-      if (index === chunks.length - 1) utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
+      
+      // Try to find a female voice
+      const voices = window.speechSynthesis.getVoices();
+      const isFemale = (name) => {
+        const n = name.toLowerCase();
+        return n.includes('female') || n.includes('woman') || ['samantha', 'zira', 'karen', 'victoria', 'tessa'].some(f => n.includes(f));
+      };
+      let femaleVoice = voices.find(v => v.lang === utterance.lang && isFemale(v.name));
+      if (!femaleVoice) femaleVoice = voices.find(v => v.lang.startsWith(utterance.lang.split('-')[0]) && isFemale(v.name));
+      if (!femaleVoice) femaleVoice = voices.find(v => v.lang.startsWith('en') && isFemale(v.name));
+      if (femaleVoice) {
+        utterance.voice = femaleVoice;
+      }
+      if (index === 0) utterance.onstart = () => { setIsSpeaking(true); isSpeakingRef.current = true; };
+      if (index === chunks.length - 1) utterance.onend = () => { setIsSpeaking(false); isSpeakingRef.current = false; };
+      utterance.onerror = () => { setIsSpeaking(false); isSpeakingRef.current = false; };
       synthesisRef.speak(utterance);
     });
   };
@@ -130,36 +148,58 @@ export default function VaniAI({ onNavigate }) {
   const handleUserInput = (text) => {
     const cleanText = text.trim();
     if (!cleanText) return;
+    
+    // Barge-in and echo cancellation logic
+    if (isSpeakingRef.current) {
+      if (cleanText.toLowerCase().includes('vani') || cleanText.toLowerCase().includes('stop') || cleanText.length > 10) {
+        // User barge-in! Stop speaking and process.
+        stopSpeaking();
+      } else {
+        // Likely hearing its own echo, ignore.
+        setTranscript('');
+        return;
+      }
+    }
+
     setTranscript('');
     const userMsg = { id: Date.now(), sender: 'user', text: cleanText, timestamp: new Date().toLocaleTimeString() };
     setMessages(prev => [...prev, userMsg]);
-    setTimeout(() => generateResponse(cleanText.toLowerCase()), 800);
+    setTimeout(() => generateResponse(cleanText), 800);
   };
 
-  const generateResponse = (input) => {
+  const generateResponse = async (input) => {
     let responseText = '';
     
-    if (input.includes('scan') || input.includes('crop') || input.includes('leaf') || input.includes('curling') || input.includes('spot')) {
-      responseText = 'It sounds like a pest or fungal issue. Let me open the Crop Scan tool so you can take a picture of the affected leaves.';
-      setTimeout(() => onNavigate && onNavigate('CropScan'), 2500);
-    }
-    else if (input.includes('water') || input.includes('well') || input.includes('irrigate')) {
-      responseText = 'Soil moisture levels are currently at 42%. Opening the Satellite Water Monitor for detailed mapping of your fields.';
-      setTimeout(() => onNavigate && onNavigate('WaterSafety'), 2500);
-    }
-    else if (input.includes('weather') || input.includes('heat') || input.includes('temperature')) {
-      responseText = 'The forecasted high today is 38°C. Please check ThermaPlan for safe field working hours and livestock heat stress risks.';
-      setTimeout(() => onNavigate && onNavigate('ThermaPlan'), 2500);
-    }
-    else if (input.includes('price') || input.includes('market')) {
-      responseText = 'Maize is currently trading at ₹2,200 per quintal in the Warangal Mandi. Would you like me to open the marketplace?';
-    }
-    else if (input.includes('emergency') || input.includes('hazard') || input.includes('spill')) {
+    // Quick emergency override check
+    if (input.toLowerCase().includes('emergency') || input.toLowerCase().includes('hazard') || input.toLowerCase().includes('spill') || input.toLowerCase().includes('poison')) {
       setShowEmergency(true);
       responseText = 'Farm emergency protocol activated. Displaying immediate hazard response and local agricultural officer contacts.';
-    }
-    else {
-      responseText = 'I am processing your query. Please provide more details regarding your crop, soil, or machinery.';
+      
+      const vaniMsg = { id: Date.now() + 1, sender: 'vani', text: responseText, timestamp: new Date().toLocaleTimeString() };
+      setMessages(prev => [...prev, vaniMsg]);
+      speak(responseText);
+      return;
+    } 
+
+    try {
+      const { generateStructuredResponse } = await import('../services/aiProvider');
+      const historyText = messages.slice(-3).map(m => `${m.sender === 'user' ? 'User' : 'Vani'}: ${m.text}`).join('\n');
+      const prompt = `Context:\n${historyText}\nUser: ${input}\n\nYou are Vani, an AI farm assistant. Respond briefly (1-3 sentences) to the user's spoken query. Determine if the user wants to navigate to a page.`;
+      
+      const schemaDescription = `{ "responseText": "Your spoken reply", "action": "navigate" | "none", "payload": "if action is navigate, specify route path, e.g., '/', '/news', '/crop', '/weather', '/settings', '/documents', '/market', '/community'" }`;
+
+      const aiData = await generateStructuredResponse(prompt, schemaDescription);
+      
+      responseText = aiData.responseText || 'I did not understand that.';
+      
+      if (aiData.action === 'navigate' && aiData.payload && onNavigate) {
+        onNavigate(aiData.payload);
+        // Sometimes you might want to add a slight delay or just speak
+      }
+      
+    } catch (err) {
+      console.error("AI Error:", err);
+      responseText = 'I am processing your query but I am having trouble connecting to my brain right now.';
     }
 
     const vaniMsg = { id: Date.now() + 1, sender: 'vani', text: responseText, timestamp: new Date().toLocaleTimeString() };

@@ -9,8 +9,8 @@ export default function StoreOrdersSettings() {
   const Toggle = ({ label, checked, onChange, subtitle }) => (
     <div className="flex justify-between items-center py-3">
       <div className="flex flex-col">
-        <span className="text-zinc-900  font-bold">{label}</span>
-        {subtitle && <span className="text-zinc-500  text-xs">{subtitle}</span>}
+        <span className="text-gray-900  font-bold">{label}</span>
+        {subtitle && <span className="text-gray-400  text-xs">{subtitle}</span>}
       </div>
       <button 
         onClick={() => onChange(!checked)}
@@ -33,11 +33,11 @@ export default function StoreOrdersSettings() {
         </div>
         <div className="border-b border-gray-100  flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl cursor-pointer">
           <span className="font-bold text-gray-900 ">Payment Methods</span>
-          <ChevronRight className="w-4 h-4 ml-1 text-gray-400" />
+          <ChevronRight className="w-4 h-4 ml-1 text-slate-400" />
         </div>
         <div className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl cursor-pointer">
           <span className="font-bold text-gray-900 ">Shipping Addresses</span>
-          <ChevronRight className="w-4 h-4 ml-1 text-gray-400" />
+          <ChevronRight className="w-4 h-4 ml-1 text-slate-400" />
         </div>
       </div>
     </div>

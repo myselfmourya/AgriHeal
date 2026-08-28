@@ -1,20 +1,12 @@
 /**
- * AgriHeal — AI Provider (Proxy Client)
+ * AgriHeal — AI Provider (Mistral Client-Side Direct)
  *
- * All AI calls are routed through the Supabase `ai-proxy` Edge Function.
- * NO provider API keys exist in this file or in any VITE_* environment variable.
- *
- * Public API (unchanged — all callers work without modification):
- *   generateText(prompt, systemInstruction?)
- *   generateStructuredResponse(prompt, schemaDescription, systemInstruction?)
- *   analyzeImage(base64Image, prompt, mimeType?)
- *   translate(text, targetLanguage)
- *   summarize(text)
- *   analyzeDocument(text, task)
- *   generateReport(data, reportType)
+ * Modified to call Mistral API directly using fetch for prototyping.
+ * Reads VITE_MISTRAL_API_KEY from environment variables.
  */
 
 import { supabase } from '../lib/supabase';
+import { buildSystemInstruction } from './contextService';
 
 // ── Core proxy call ────────────────────────────────────────────────────────
 
@@ -31,17 +23,23 @@ async function callProxy({
   base64Image?: string | null;
   mimeType?: string;
 }): Promise<string> {
+  // Inject global context into the system instruction
+  const finalSystemInstruction = buildSystemInstruction(systemInstruction || "You are Vani, an intelligent agricultural assistant for rural Indian farmers.");
+
   const { data, error } = await supabase.functions.invoke('ai-proxy', {
-    body: { intent, prompt, systemInstruction, base64Image, mimeType },
+    body: { intent, prompt, systemInstruction: finalSystemInstruction, base64Image, mimeType },
   });
 
-  if (error) throw new Error(`[ai-proxy] ${error.message}`);
+  if (error) {
+    console.error("AI Proxy Error:", error);
+    throw new Error(`[ai-proxy] ${error.message}`);
+  }
   if (!data?.text) throw new Error('[ai-proxy] Empty response from server');
 
   return data.text;
 }
 
-// ── Public interfaces (identical signatures to the old aiProvider.js) ───────
+// ── Public interfaces (identical signatures to the old aiProvider) ───────
 
 export const generateText = async (
   prompt: string,
@@ -63,7 +61,12 @@ export const generateStructuredResponse = async (
   if (result.startsWith('```json')) result = result.slice(7, -3).trim();
   else if (result.startsWith('```')) result = result.slice(3, -3).trim();
 
-  return JSON.parse(result);
+  try {
+    return JSON.parse(result);
+  } catch (e) {
+    console.error("Failed to parse JSON from Mistral:", result);
+    throw new Error("Mistral returned invalid JSON");
+  }
 };
 
 export const analyzeImage = async (

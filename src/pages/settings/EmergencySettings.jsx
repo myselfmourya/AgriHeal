@@ -9,8 +9,8 @@ export default function EmergencySettings() {
   const Toggle = ({ label, checked, onChange, subtitle }) => (
     <div className="flex justify-between items-center py-3 w-full">
       <div className="flex flex-col">
-        <span className="text-zinc-900 font-bold">{label}</span>
-        {subtitle && <span className="text-zinc-500 text-xs">{subtitle}</span>}
+        <span className="text-gray-900 font-bold">{label}</span>
+        {subtitle && <span className="text-gray-400 text-xs">{subtitle}</span>}
       </div>
       <button 
         onClick={() => onChange(!checked)}
@@ -53,7 +53,7 @@ export default function EmergencySettings() {
             <span className="font-bold text-gray-900 ">Local Authorities</span>
             <span className="text-xs text-gray-500">Police, Ambulance, Fire</span>
           </div>
-          <ChevronRight className="w-4 h-4 ml-1 text-gray-400" />
+          <ChevronRight className="w-4 h-4 ml-1 text-slate-400" />
         </div>
 
         <div className="border-b border-gray-100 ">

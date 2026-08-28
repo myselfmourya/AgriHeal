@@ -26,6 +26,7 @@ import OfflineModeSettings from './settings/OfflineModeSettings';
 import EmergencySettings from './settings/EmergencySettings';
 import AboutAppSettings from './settings/AboutAppSettings';
 import AccountSettings from './settings/AccountSettings';
+import ProfileSettings from './settings/ProfileSettings';
 
 // Dummy component for unimplemented settings
 const PlaceholderSettings = ({ title }) => (
@@ -42,6 +43,7 @@ const SETTINGS_GROUPS = [
   {
     title: 'Account',
     items: [
+      { id: 'profile', path: '/settings/profile', icon: UserCircle, label: 'Profile Details', component: ProfileSettings },
       { id: 'account', path: '/settings/account', icon: UserCircle, label: 'Account & Security', component: AccountSettings },
     ]
   },

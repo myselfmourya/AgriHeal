@@ -8,6 +8,7 @@ import { SettingsProvider } from './contexts/SettingsContext'
 import NotificationEngine from './components/NotificationEngine'
 import AuthLayout from './components/AuthLayout'
 import VaniWidget from './components/Vani/VaniWidget'
+import ScrollToTop from './components/ScrollToTop'
 
 // ── Lazy load all pages ────────────────────────────────────────────────────
 const FarmerDashboard  = lazy(() => import('./components/FarmerDashboard'))
@@ -30,7 +31,6 @@ const CropReports      = lazy(() => import('./pages/crops/CropReports'))
 const CropNotes        = lazy(() => import('./pages/crops/CropNotes'))
 
 // Removed standalone VaniPage to consolidate into VaniWidget
-const AgriShield       = lazy(() => import('./components/AgriShield'))
 const ToxiGuard        = lazy(() => import('./components/ToxiGuard'))
 const CropNutrition    = lazy(() => import('./components/CropNutrition'))
 const FertilisersPage  = lazy(() => import('./pages/FertilisersPage'))
@@ -48,7 +48,7 @@ const FarmCare         = lazy(() => import('./pages/FarmCare'))
 const ToolsStore       = lazy(() => import('./pages/ToolsStore'))
 const CommunityPage    = lazy(() => import('./pages/CommunityPage'))
 // Removed AILearningPage to consolidate AI features
-const ImageAnalysisPage = lazy(() => import('./pages/ImageAnalysisPage'))
+const AIAssistant      = lazy(() => import('./pages/AIAssistant'))
 const HelpSupportPage  = lazy(() => import('./pages/HelpSupportPage'))
 
 // Auth Pages
@@ -94,6 +94,7 @@ export default function App() {
 
   return (
     <>
+      <ScrollToTop />
       {showVaniWidget && <VaniWidget />}
       <SettingsProvider>
         <NotificationEngine />
@@ -139,7 +140,6 @@ export default function App() {
             <Route path="/crops/:id/notes"      element={<CropNotes />} />
             <Route path="/farm-care"    element={<FarmCare />} />
             {/* Removed /vani route */}
-            <Route path="/scan"         element={<AgriShield       onSpeak={() => {}} />} />
             <Route path="/toxi"         element={<ToxiGuard        onSpeak={() => {}} />} />
             <Route path="/fertilisers"  element={<FertilisersPage />} />
             <Route path="/nutri"        element={<CropNutrition    onSpeak={() => {}} />} />
@@ -155,8 +155,7 @@ export default function App() {
             <Route path="/settings/*"   element={<Settings />} />
             <Route path="/store"        element={<ToolsStore />} />
             <Route path="/community"    element={<CommunityPage />} />
-            {/* Removed /assistant route */}
-            <Route path="/analysis"     element={<ImageAnalysisPage />} />
+            <Route path="/assistant"    element={<AIAssistant />} />
             <Route path="/help"         element={<HelpSupportPage />} />
               <Route path="*"             element={<Navigate to="/home" replace />} />
             </Routes>

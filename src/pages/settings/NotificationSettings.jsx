@@ -2,6 +2,28 @@ import React, { useEffect, useState } from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { CloudRain, TrendingUp, Bug, Bell, Gift } from 'lucide-react';
 
+function Switch({ checked, onChange, disabled }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`${
+        checked ? 'bg-green-600' : 'bg-gray-200'
+      } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none`}
+    >
+      <span
+        aria-hidden="true"
+        className={`${
+          checked ? 'translate-x-5' : 'translate-x-0'
+        } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+      />
+    </button>
+  );
+}
+
 export default function NotificationSettings() {
   const { settings, updateSetting } = useSettings();
   const { notifications } = settings;
@@ -18,7 +40,6 @@ export default function NotificationSettings() {
   const handlePushToggle = async (val) => {
     if (val && 'Notification' in window) {
       if (Notification.permission === 'denied') {
-        // Permission already permanently denied — tell user and do NOT flip toggle
         alert(
           'Push notifications are blocked by your browser.\n\n' +
           'To enable them:\n1. Click the 🔒 icon in your address bar\n2. Set Notifications to "Allow"\n3. Refresh the page'
@@ -28,31 +49,26 @@ export default function NotificationSettings() {
       if (Notification.permission !== 'granted') {
         const result = await Notification.requestPermission();
         setPermState(result);
-        if (result !== 'granted') return; // user denied — don't flip toggle
+        if (result !== 'granted') return;
       }
     }
     updateSetting('notifications', 'pushNotifications', val);
   };
 
-  const Toggle = ({ icon: Icon, label, checked, onChange, subtitle, disabled = false }) => (
-    <div className={`flex justify-between items-center py-3 w-full ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
-      <div className="flex items-center gap-3">
+  const ToggleRow = ({ icon: Icon, label, checked, onChange, subtitle, disabled = false }) => (
+    <div className={`w-full flex items-center justify-between p-4 bg-slate-50 ${!disabled && 'hover:bg-gray-100'} transition-colors ${disabled ? 'opacity-50' : ''}`}>
+      <div className="flex items-center gap-4">
         {Icon && (
-          <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center text-green-700 shrink-0">
-            <Icon className="w-5 h-5" />
+          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shrink-0 shadow-sm">
+            <Icon className="w-5 h-5 text-gray-500" />
           </div>
         )}
-        <div className="flex flex-col">
-          <span className="text-zinc-900 font-bold">{label}</span>
-          {subtitle && <span className="text-zinc-500 text-xs">{subtitle}</span>}
+        <div className="text-left">
+          <h4 className="font-bold text-gray-900 text-sm">{label}</h4>
+          {subtitle && <p className="text-xs text-gray-500">{subtitle}</p>}
         </div>
       </div>
-      <button
-        onClick={() => onChange(!checked)}
-        className={`w-12 h-6 rounded-full relative transition-colors shrink-0 ${checked ? 'bg-green-700' : 'bg-gray-300'}`}
-      >
-        <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${checked ? 'translate-x-6' : ''}`} />
-      </button>
+      <Switch checked={checked} onChange={onChange} disabled={disabled} />
     </div>
   );
 
@@ -61,40 +77,40 @@ export default function NotificationSettings() {
 
       {/* Browser permission warning */}
       {permState === 'denied' && (
-        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-xl text-sm text-yellow-800">
+        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-3xl text-sm text-yellow-800 font-medium">
           ⚠️ Push notifications are <strong>blocked</strong> in your browser settings.
           Open your browser's site settings and set Notifications to "Allow" to use this feature.
         </div>
       )}
 
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-6">
-        <Toggle
-          label="All Notifications"
-          checked={notifications.allNotifications}
-          onChange={(val) => updateSetting('notifications', 'allNotifications', val)}
-        />
+      {/* Main Switch */}
+      <div className="mb-8">
+        <div className="bg-slate-50 rounded-3xl overflow-hidden">
+          <ToggleRow
+            label="All Notifications"
+            subtitle="Enable or disable all alerts"
+            checked={notifications.allNotifications}
+            onChange={(val) => updateSetting('notifications', 'allNotifications', val)}
+          />
+        </div>
       </div>
 
-      <div className={`bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-2 mb-6 ${!notifications.allNotifications ? 'opacity-50 pointer-events-none' : ''}`}>
-        <h3 className="font-bold text-gray-500 uppercase text-xs tracking-wider mb-2">Notification Channels</h3>
-
-        <div className="border-b border-gray-100">
-          <Toggle
+      {/* Channels */}
+      <div className={`mb-8 ${!notifications.allNotifications ? 'opacity-50 pointer-events-none' : ''}`}>
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-4 mb-3">Notification Channels</h3>
+        <div className="bg-slate-50 rounded-3xl overflow-hidden flex flex-col gap-0.5">
+          <ToggleRow
             label="Push Notifications"
-            subtitle={permState === 'denied' ? '⚠️ Blocked in browser — change site settings' : 'Get alerts even when app is closed'}
+            subtitle={permState === 'denied' ? '⚠️ Blocked in browser' : 'Alerts when app is closed'}
             checked={notifications.pushNotifications && permState === 'granted'}
             onChange={handlePushToggle}
           />
-        </div>
-        <div className="border-b border-gray-100">
-          <Toggle
+          <ToggleRow
             label="Email Notifications"
             checked={notifications.emailNotifications}
             onChange={(val) => updateSetting('notifications', 'emailNotifications', val)}
           />
-        </div>
-        <div>
-          <Toggle
+          <ToggleRow
             label="SMS Notifications"
             checked={notifications.smsNotifications}
             onChange={(val) => updateSetting('notifications', 'smsNotifications', val)}
@@ -102,18 +118,19 @@ export default function NotificationSettings() {
         </div>
       </div>
 
-      <div className={`bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-2 ${!notifications.allNotifications ? 'opacity-50 pointer-events-none' : ''}`}>
-        <h3 className="font-bold text-gray-500 uppercase text-xs tracking-wider mb-2">Alert Categories</h3>
-
-        {[
-          { icon: CloudRain, key: 'weather',     label: 'Weather Alerts' },
-          { icon: TrendingUp, key: 'market',     label: 'Market Alerts' },
-          { icon: Bug,       key: 'pestDisease', label: 'Pest & Disease Alerts' },
-          { icon: Bell,      key: 'reminders',   label: 'Reminders' },
-          { icon: Gift,      key: 'offersUpdates', label: 'Offers & Updates' },
-        ].map(({ icon, key, label }, i, arr) => (
-          <div key={key} className={i < arr.length - 1 ? 'border-b border-gray-100' : ''}>
-            <Toggle
+      {/* Categories */}
+      <div className={`mb-8 ${!notifications.allNotifications ? 'opacity-50 pointer-events-none' : ''}`}>
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-4 mb-3">Alert Categories</h3>
+        <div className="bg-slate-50 rounded-3xl overflow-hidden flex flex-col gap-0.5">
+          {[
+            { icon: CloudRain, key: 'weather',     label: 'Weather Alerts' },
+            { icon: TrendingUp, key: 'market',     label: 'Market Alerts' },
+            { icon: Bug,       key: 'pestDisease', label: 'Pest & Disease Alerts' },
+            { icon: Bell,      key: 'reminders',   label: 'Reminders' },
+            { icon: Gift,      key: 'offersUpdates', label: 'Offers & Updates' },
+          ].map(({ icon, key, label }) => (
+            <ToggleRow
+              key={key}
               icon={icon}
               label={label}
               checked={notifications.alertCategories[key]}
@@ -121,9 +138,10 @@ export default function NotificationSettings() {
                 ...notifications.alertCategories, [key]: val
               })}
             />
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
+
     </div>
   );
 }
