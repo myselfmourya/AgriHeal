@@ -1,10 +1,3 @@
-/**
- * AgriHeal — AI Provider (Mistral Client-Side Direct)
- *
- * Modified to call Mistral API directly using fetch for prototyping.
- * Reads VITE_MISTRAL_API_KEY from environment variables.
- */
-
 import { supabase } from '../lib/supabase';
 import { buildSystemInstruction } from './contextService';
 

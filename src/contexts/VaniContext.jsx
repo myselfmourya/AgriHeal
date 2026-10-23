@@ -27,6 +27,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { generateVaniResponse } from '../services/aiService';
 import { getGlobalContext } from '../services/contextService';
+import { supabase } from '../lib/supabase';
 
 export const LANGS = [
   { code: 'en', label: 'English' },
@@ -163,6 +164,9 @@ export const VaniProvider = ({ children }) => {
   const weatherCacheRef  = useRef(null);
   const weatherTimeRef   = useRef(0);
   const recRef           = useRef(null);   // current recognition instance
+  const audioRef         = useRef(null);
+  const isSpeakingRef    = useRef(false);
+  const currentSpeechIdRef = useRef(0);
 
   // ── Prefs ────────────────────────────────────────────────────────────────
   const getVoicePrefs = () => {
@@ -177,40 +181,125 @@ export const VaniProvider = ({ children }) => {
   };
 
   // ── TTS ──────────────────────────────────────────────────────────────────
-  const speak = useCallback((text, forceLang) => {
+  // Browser speechSynthesis fallback — used when the ElevenLabs proxy is
+  // unreachable (offline / slow rural network) or returns an error.
+  const browserSpeak = useCallback((text, forceLang) => {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
+
+    setIsSpeaking(true);
+    isSpeakingRef.current = true;
+
     const { rate, volume, lang } = getVoicePrefs();
     const utter = new SpeechSynthesisUtterance(text);
-    
-    // Auto-detect script if not forced
-    let detected = LANG_BCP[i18n.language] ?? 'en-IN';
-    if (lang && lang !== 'auto') {
-      detected = LANG_BCP[lang] ?? 'en-IN';
-    } else {
-      if (forceLang) detected = forceLang;
-      else if (/[\u0B80-\u0BFF]/.test(text)) detected = 'ta-IN';
-      else if (/[\u0C00-\u0C7F]/.test(text)) detected = 'te-IN';
-      else if (/[\u0900-\u097F]/.test(text)) detected = 'hi-IN';
+
+    let targetLang = lang;
+    if (lang === 'auto') {
+      targetLang = forceLang || i18n.language || 'en';
     }
-    
-    utter.lang   = detected;
-    utter.rate   = rate;
+
+    const voices = window.speechSynthesis.getVoices();
+    let voice = voices.find(v => v.lang.startsWith(targetLang) && (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('samantha') || v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('veena') || v.name.toLowerCase().includes('aditi')));
+    if (!voice) voice = voices.find(v => v.lang.startsWith(targetLang));
+    if (!voice && targetLang === 'hi') voice = voices.find(v => v.lang.startsWith('hi-IN'));
+    if (!voice && targetLang === 'te') voice = voices.find(v => v.lang.startsWith('te-IN'));
+    if (!voice && targetLang === 'ta') voice = voices.find(v => v.lang.startsWith('ta-IN'));
+    if (!voice && targetLang === 'mr') voice = voices.find(v => v.lang.startsWith('mr-IN'));
+
+    if (voice) utter.voice = voice;
+    utter.rate = rate;
     utter.volume = volume;
 
-    // Pick best female voice (including Indian female voice names)
-    const voices = window.speechSynthesis.getVoices();
-    const FEMALE = ['samantha','zira','karen','victoria','tessa','female','woman','lekha','shruti','veena','anjali','pallavi','aditi'];
-    const pick =
-      voices.find(v => v.lang === utter.lang     && FEMALE.some(f => v.name.toLowerCase().includes(f))) ||
-      voices.find(v => v.lang.startsWith('en')   && FEMALE.some(f => v.name.toLowerCase().includes(f)));
-    if (pick) utter.voice = pick;
+    utter.onstart = () => {
+      setIsSpeaking(true);
+      isSpeakingRef.current = true;
+    };
 
-    utter.onstart = () => setIsSpeaking(true);
-    utter.onend   = () => setIsSpeaking(false);
-    utter.onerror = () => setIsSpeaking(false);
+    utter.onend = () => {
+      setIsSpeaking(false);
+      isSpeakingRef.current = false;
+    };
+
+    utter.onerror = () => {
+      setIsSpeaking(false);
+      isSpeakingRef.current = false;
+    };
+
+    window._vani_tts_utterance = utter; // Prevent GC bug
     window.speechSynthesis.speak(utter);
-  }, [i18n.language]);
+
+    setTimeout(() => {
+      if (isSpeakingRef.current) {
+        setIsSpeaking(false);
+        isSpeakingRef.current = false;
+      }
+    }, 10000);
+  }, [i18n.language, getVoicePrefs]);
+
+  // Human ElevenLabs voice via the server-side tts-proxy Edge Function.
+  // Falls back to the browser's built-in speechSynthesis on any failure.
+  const speak = useCallback((text, forceLang) => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+    window.speechSynthesis?.cancel();
+
+    setIsSpeaking(true);
+    isSpeakingRef.current = true;
+
+    const speechId = ++currentSpeechIdRef.current;
+    const { volume } = getVoicePrefs();
+
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error('No session');
+
+        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tts-proxy`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ text }),
+        });
+
+        if (!res.ok) throw new Error(`tts-proxy ${res.status}`);
+        if (speechId !== currentSpeechIdRef.current) return; // superseded by a newer speak() call
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.volume = volume;
+        audioRef.current = audio;
+
+        audio.onended = () => {
+          setIsSpeaking(false);
+          isSpeakingRef.current = false;
+          URL.revokeObjectURL(url);
+        };
+        audio.onerror = () => {
+          setIsSpeaking(false);
+          isSpeakingRef.current = false;
+          URL.revokeObjectURL(url);
+        };
+
+        await audio.play();
+      } catch (e) {
+        if (speechId !== currentSpeechIdRef.current) return;
+        browserSpeak(text, forceLang);
+      }
+    })();
+
+    setTimeout(() => {
+      if (isSpeakingRef.current && speechId === currentSpeechIdRef.current) {
+        setIsSpeaking(false);
+        isSpeakingRef.current = false;
+      }
+    }, 15000);
+  }, [getVoicePrefs, browserSpeak]);
 
   // ── Weather ──────────────────────────────────────────────────────────────
   const fetchWeatherByLocation = useCallback(async () => {
@@ -247,8 +336,44 @@ export const VaniProvider = ({ children }) => {
          fetchWeatherByLocation().catch(() => {});
       }
 
+      // Read the user's preferred language from settings
+      let targetLang = 'en-IN';
+      try {
+        const { lang } = getVoicePrefs();
+        targetLang = lang !== 'auto' ? lang : (i18n.language || 'en');
+        targetLang = targetLang === 'hi' ? 'Hindi' : (targetLang === 'te' ? 'Telugu' : (targetLang === 'ta' ? 'Tamil' : 'English'));
+      } catch (e) {}
+
+      // FAST PATH: local intent matching for instant UI navigation without AI lag
+      const navTokens = ['open ', 'go to ', 'show ', 'navigate ', 'take me to '];
+      let isNav = navTokens.some(tok => t.includes(tok));
+      
+      // If it doesn't have an action verb, check if the ENTIRE command is just a route name
+      let directMatch = false;
+      if (!isNav) {
+         for (const nav of NAV_MAP) {
+            if (nav.keys.includes(t)) {
+                isNav = true;
+                directMatch = true;
+                break;
+            }
+         }
+      }
+
+      if (isNav) {
+        for (const nav of NAV_MAP) {
+          if (nav.keys.some(k => t.includes(k) || (directMatch && k === t))) {
+             return {
+                speech: `Opening ${nav.keys[0]}.`,
+                action: 'NAVIGATE',
+                target: nav.route
+             };
+          }
+        }
+      }
+
       // Pass the query directly to Mistral for 100% flexible AI-driven control!
-      const aiResponse = await generateVaniResponse(t, { farmer: ctx, weather });
+      const aiResponse = await generateVaniResponse(t, { farmer: ctx, weather }, targetLang);
       
       return { 
         speech: aiResponse.text, 
@@ -324,6 +449,9 @@ export const VaniProvider = ({ children }) => {
     recRef.current = rec;
 
     rec.onresult = (e) => {
+      // ★ If Vani is currently speaking, ignore incoming audio (prevents self-trigger loop)
+      if (isSpeakingRef.current) return;
+
       let interim = '';
       let finalText = '';
 
@@ -391,21 +519,13 @@ export const VaniProvider = ({ children }) => {
         setTranscript(cmdPart);
       }
 
-      // On final result → process immediately (no silence wait needed)
-      if (finalText) {
-        clearTimeout(silenceTimerRef.current);
-        const cmd = commandBufRef.current;
-        handleCommand(cmd);
-        return;
-      }
-
-      // On interim → reset silence timer (user is still speaking)
-      // ★ 500ms (was 700ms) — eliminates lag while remaining natural
+      // Reset silence timer on ANY speech. Use a long 1500ms timeout so we don't cut off
+      // users in noisy environments. We will rely on rec.onend for "instant" execution.
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = setTimeout(() => {
         const cmd = commandBufRef.current;
         if (cmd) handleCommand(cmd);
-      }, 500);
+      }, 1500);
     };
 
     rec.onend = () => {
@@ -418,6 +538,10 @@ export const VaniProvider = ({ children }) => {
           activatedRef.current = false;
           setIsActivated(false);
           commandBufRef.current = '';
+        } else {
+          // The browser detected silence and ended recognition. Execute INSTANTLY!
+          clearTimeout(silenceTimerRef.current);
+          handleCommand(hasCmd);
         }
       }
       // ★ 50ms gap (was 0ms) — prevents Chrome InvalidStateError on slow devices
@@ -468,6 +592,8 @@ export const VaniProvider = ({ children }) => {
     setIsActivated(false);
     setTranscript('');
     setStatusText('');
+    isSpeakingRef.current = false; // Force reset
+    setIsSpeaking(false);
   }, []);
 
   // ── Toggle voice mode ─────────────────────────────────────────────────────
@@ -477,21 +603,12 @@ export const VaniProvider = ({ children }) => {
 
     if (enabled) {
       const granted = await requestMicPermission();
-      // Play greeting — mic starts after greeting so beep isn't cut off
-      const { rate, volume } = getVoicePrefs();
-      const utter = new SpeechSynthesisUtterance("Hi! I'm Vani. Say Hey Vani followed by your command.");
-      utter.lang   = LANG_BCP[i18n.language] ?? 'en-IN';
-      utter.rate   = rate;
-      utter.volume = volume;
-      const voices = window.speechSynthesis?.getVoices() || [];
-      const FEMALE = ['samantha','zira','karen','victoria','tessa','female','woman','lekha','shruti','veena','anjali','pallavi','aditi'];
-      const pick = voices.find(v => v.lang.startsWith('en') && FEMALE.some(f => v.name.toLowerCase().includes(f)));
-      if (pick) utter.voice = pick;
-      utter.onend = () => { setIsSpeaking(false); if (granted) startListening(); };
-      utter.onstart = () => setIsSpeaking(true);
-      utter.onerror = () => { setIsSpeaking(false); if (granted) startListening(); };
-      window.speechSynthesis?.cancel();
-      window.speechSynthesis?.speak(utter);
+      if (granted) {
+        shouldRunRef.current = true;
+        startLoop();
+      } else {
+        setIsVoiceModeEnabled(false);
+      }
     } else {
       stopListening();
       window.speechSynthesis?.cancel();
@@ -517,12 +634,16 @@ export const VaniProvider = ({ children }) => {
     speak(msg);
   }, [isVoiceModeEnabled, speak]);
 
-  // ── startVaniSession (prototype: just starts mic) ─────────────────────────
+  // ── startVaniSession — launches the full LiveKit voice conversation ───────
   const startVaniSession = useCallback(async ({ intent = 'general' } = {}) => {
-    if (!isVoiceModeEnabled) { speak('Please enable the voice assistant in Settings first.'); return; }
+    const granted = await requestMicPermission();
+    if (!granted) {
+      speak('Microphone access was denied. Please allow microphone in your browser settings to use Vani.');
+      return;
+    }
     setSessionIntent(intent);
-    await startListening();
-  }, [isVoiceModeEnabled, speak, startListening]);
+    setIsLiveKitActive(true);
+  }, [speak]);
 
   return (
     <VaniContext.Provider value={{

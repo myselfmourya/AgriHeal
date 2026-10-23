@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Sparkles, Home, Leaf, FileText, Settings, Bot, Menu, X, LeafyGreen } from 'lucide-react';
 import { useVani } from '../contexts/VaniContext';
-import VaniOverlay from './VaniOverlay';
+import AmbientVoiceOverlay from './Vani/AmbientVoiceOverlay';
 import { useTranslation } from 'react-i18next';
 import { useFarmer } from '../contexts/FarmerContext';
 
@@ -16,7 +16,7 @@ export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { overlay, closeVani, startVaniSession } = useVani();
+  const { overlay } = useVani();
   const { profile } = useFarmer();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -58,9 +58,7 @@ export default function Layout({ children }) {
       {/* ── Desktop Sidebar ── */}
       <aside className="hidden md:flex flex-col w-64 bg-white/80 backdrop-blur-xl border-r border-green-100/50 p-4 fixed h-full z-40 shadow-[4px_0_24px_rgba(34,197,94,0.05)]">
         <div className="flex items-center gap-2 mb-10 px-2 mt-2">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-700 flex items-center justify-center text-white shadow-lg shadow-green-600/20">
-            <LeafyGreen className="w-6 h-6" />
-          </div>
+          <img src="/app-logo.jpg" alt="AgriHeal Logo" className="w-12 h-12 object-contain mix-blend-multiply" />
           <span className="font-bold text-2xl tracking-tight text-gray-900">AgriHeal</span>
         </div>
 
@@ -149,7 +147,7 @@ export default function Layout({ children }) {
 
       {/* Vani Voice Overlay */}
       <AnimatePresence>
-        {overlay && <VaniOverlay onClose={closeVani} />}
+        {overlay && <AmbientVoiceOverlay />}
       </AnimatePresence>
     </div>
   );

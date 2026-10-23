@@ -10,6 +10,7 @@ import {
   PieChart as RechartsPieChart, Pie, Cell
 } from 'recharts';
 import { useFarmer } from '../contexts/FarmerContext';
+import { fetchMarketPrices } from '../services/marketService';
 
 // Accurate current Indian Market Prices (per quintal)
 export const allCrops = [
@@ -124,9 +125,10 @@ export default function HealMarketplace({ onSpeak }) {
   const [newExpense, setNewExpense] = useState({ name: 'Others', value: '' });
   const [newIncome, setNewIncome] = useState({ source: '', value: '' });
 
-  // --- LOCATION & MOCK DATA ---
+  // --- LOCATION ---
   const [location, setLocation] = useState("Locating...");
   const [cityOnly, setCityOnly] = useState("Local Area");
+  const [detectedState, setDetectedState] = useState("Andhra Pradesh");
   const [coords, setCoords] = useState({ lat: 15.8281, lon: 78.0373 }); // Default Kurnool
 
   useEffect(() => {
@@ -141,6 +143,7 @@ export default function HealMarketplace({ onSpeak }) {
             const city = data.address.city || data.address.town || data.address.village || data.address.county || data.address.state_district;
             const state = data.address.state;
             if (city) setCityOnly(city);
+            if (state) setDetectedState(state);
             if (city && state) {
               setLocation(`${city}, ${state}`);
             } else {
@@ -163,7 +166,32 @@ export default function HealMarketplace({ onSpeak }) {
     }
   }, []);
 
-  const sortedCrops = [...allCrops].sort((a, b) => {
+  // --- LIVE MANDI PRICES (data.gov.in via Supabase market-proxy) ---
+  const [livePrices, setLivePrices] = useState([]); // [{crop, price, market, ...}]
+  const [liveLoading, setLiveLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    setLiveLoading(true);
+    fetchMarketPrices(detectedState).then(records => {
+      if (active) { setLivePrices(records); setLiveLoading(false); }
+    });
+    return () => { active = false; };
+  }, [detectedState]);
+
+  // Merge live prices onto the reference crop list by commodity name match.
+  const liveCrops = React.useMemo(() => {
+    const liveByName = new Map(livePrices.map(r => [r.crop.toLowerCase(), r]));
+    return allCrops.map(crop => {
+      const live = liveByName.get(crop.name.toLowerCase()) || liveByName.get(crop.name.split(' ')[0].toLowerCase());
+      if (!live) return crop;
+      return { ...crop, price: live.price, isLive: true, market: live.market, state: live.state };
+    });
+  }, [livePrices]);
+
+  const hasLiveData = livePrices.length > 0;
+
+  const sortedCrops = [...liveCrops].sort((a, b) => {
     const aFav = favorites.includes(a.name);
     const bFav = favorites.includes(b.name);
     if (aFav && !bFav) return -1;
@@ -173,7 +201,7 @@ export default function HealMarketplace({ onSpeak }) {
 
   // Dynamic Chart Data Generation based on selectedCrop and timeframe
   const generateTrendData = () => {
-    const crop = allCrops.find(c => c.name === selectedCrop) || allCrops[0];
+    const crop = liveCrops.find(c => c.name === selectedCrop) || liveCrops[0];
     const basePrice = crop.price;
     const data = [];
     let points = 7;
@@ -212,7 +240,7 @@ export default function HealMarketplace({ onSpeak }) {
   };
 
   const trendData = generateTrendData();
-  const currentCropInfo = allCrops.find(c => c.name === selectedCrop) || allCrops[0];
+  const currentCropInfo = liveCrops.find(c => c.name === selectedCrop) || liveCrops[0];
   const marketSummary = {
     highest: Math.round(currentCropInfo.price * 1.08), highestMarket: `APMC ${cityOnly}`,
     lowest: Math.round(currentCropInfo.price * 0.92), lowestMarket: 'Local Traders',
@@ -332,10 +360,17 @@ export default function HealMarketplace({ onSpeak }) {
         {/* --- SECTION 1: MARKET PRICES --- */}
         {activeSection === 'Market Prices' && (
           <div className="space-y-6 animate-fade-in">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-4 flex items-center gap-2 text-blue-800 text-sm">
-              <span>ℹ️</span>
-              <span><strong>Market prices are indicative only.</strong> Live mandi integration (Data.gov.in) is not yet active. Do not use these values for trading decisions.</span>
-            </div>
+            {hasLiveData ? (
+              <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 mb-4 flex items-center gap-2 text-green-800 text-sm">
+                <span>✅</span>
+                <span><strong>Live mandi prices for {detectedState}</strong> from data.gov.in. Crops marked "Live" below reflect today's reported APMC prices; others show typical reference prices.</span>
+              </div>
+            ) : (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-4 flex items-center gap-2 text-blue-800 text-sm">
+                <span>ℹ️</span>
+                <span><strong>{liveLoading ? 'Fetching live mandi prices…' : 'Live mandi data unavailable right now — showing reference prices.'}</strong> Do not use these values for trading decisions.</span>
+              </div>
+            )}
 
             {/* Top Crop Prices */}
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
@@ -354,6 +389,9 @@ export default function HealMarketplace({ onSpeak }) {
                     <button onClick={(e) => toggleFavorite(crop.name, e)} className="absolute top-2 right-2 p-1 hover:bg-white rounded-full transition-colors">
                       <Star className={`w-4 h-4 ${favorites.includes(crop.name) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
                     </button>
+                    {crop.isLive && (
+                      <span className="absolute top-2 left-2 text-[8px] font-black px-1.5 py-0.5 rounded-full bg-green-600 text-white">LIVE</span>
+                    )}
                     <span className="text-xs font-bold text-slate-700 mb-2">{crop.name}</span>
                     <div className="text-4xl mb-3">{crop.emoji}</div>
                     <p className="text-lg font-black text-slate-800 leading-tight">{formatCurrency(crop.price)}</p>

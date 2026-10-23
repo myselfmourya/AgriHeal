@@ -5,7 +5,7 @@ export default function AboutAppSettings() {
     <div className="animate-in fade-in slide-in-from-right-4 duration-300 w-full pb-10">
       <div className="bg-white  rounded-2xl p-6 shadow-sm border border-gray-100  text-center flex flex-col items-center justify-center">
         <div className="w-24 h-24 mb-2 flex items-center justify-center">
-          <img src="/logo-leaf.png" alt="AgriHeal Logo" className="w-full h-full object-contain drop-shadow-md" />
+          <img src="/app-logo.jpg" alt="AgriHeal Logo" className="w-full h-full object-contain mix-blend-multiply drop-shadow-sm" />
         </div>
         <h2 className="text-xl font-bold text-gray-900 ">AgriHeal</h2>
         

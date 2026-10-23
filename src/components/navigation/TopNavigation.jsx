@@ -68,9 +68,7 @@ export default function TopNavigation({ setIsMobileMenuOpen }) {
           className="group flex items-center gap-2 relative"
           title="Go to Dashboard"
         >
-          <div className="w-9 h-9 bg-green-50 rounded-xl flex items-center justify-center shrink-0">
-            <Leaf className="w-5 h-5 text-green-600" />
-          </div>
+          <img src="/app-logo.jpg" alt="AgriHeal Logo" className="w-10 h-10 object-contain mix-blend-multiply shrink-0" />
           <div className="transition-all duration-300">
             <span className="text-gray-900 font-bold text-base tracking-wide block leading-tight">AgriHeal</span>
           </div>

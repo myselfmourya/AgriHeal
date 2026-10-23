@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Heart, MessageCircle, Share2, MoreVertical, CheckCircle2,
   Search, Filter, Plus, X, Camera, Mic, Globe2, Users,
@@ -7,7 +7,55 @@ import {
 } from 'lucide-react';
 import { useFarmer } from '../contexts/FarmerContext';
 import { generateText } from '../services/aiProvider';
-import { supabase } from '../lib/supabase';
+import { communityService } from '../services/communityService';
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function timeAgo(iso) {
+  const diffSec = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (diffSec < 60) return 'Just now';
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+  return `${Math.floor(diffSec / 86400)}d ago`;
+}
+
+const CATEGORY_TYPE = {
+  'Question': 'question', 'Crop Care': 'question', 'Pest & Disease': 'question',
+  'Farming Tip': 'tip', 'Success Story': 'success', 'Market Prices': 'info',
+};
+
+function mapDbEventToUi(row) {
+  const d = new Date(row.date);
+  return {
+    id: row.id,
+    title: row.title,
+    date: d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
+    time: d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }),
+    location: row.location || 'TBA',
+    type: row.type || 'Other',
+    attendees: 0,
+  };
+}
+
+function mapDbPostToUi(row) {
+  const category = row.tags?.[0] || 'Question';
+  return {
+    id: row.id,
+    isReal: true,
+    authorId: row.author_id,
+    author: row.author_name || 'Farmer',
+    village: 'India',
+    avatar: row.author_avatar || `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(row.author_name || 'Farmer')}`,
+    time: timeAgo(row.created_at),
+    category,
+    crop: 'General',
+    type: CATEGORY_TYPE[category] || 'question',
+    content: row.content,
+    images: [],
+    likes: row.likes || 0,
+    comments: [],
+    shares: 0,
+  };
+}
 
 // ── Data ─────────────────────────────────────────────────────────────────────
 const SEED_POSTS = [
@@ -90,56 +138,83 @@ const TYPE_COLOR = {
 };
 
 const EVENT_COLOR = {
-  Scheme: 'bg-green-500', Workshop: 'bg-blue-500', Meeting: 'bg-purple-500', Demo: 'bg-orange-500'
+  Scheme: 'bg-green-500', Workshop: 'bg-blue-500', Meeting: 'bg-purple-500',
+  Demo: 'bg-orange-500', Market: 'bg-amber-500', Other: 'bg-gray-400',
 };
 
 // ── PostCard ──────────────────────────────────────────────────────────────────
-function PostCard({ post, onReply }) {
+function PostCard({ post, authorName }) {
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(post.likes);
   const [showComments, setShowComments] = useState(false);
+  const [commentsLoaded, setCommentsLoaded] = useState(!post.isReal);
   const [commentText, setCommentText] = useState('');
   const [comments, setComments] = useState(post.comments || []);
   const [aiAnswering, setAiAnswering] = useState(false);
 
-  const handleLike = () => {
-    setLiked(l => !l);
-    setLikeCount(c => liked ? c - 1 : c + 1);
+  const handleLike = async () => {
+    const next = !liked;
+    setLiked(next);
+    setLikeCount(c => next ? c + 1 : c - 1);
+    if (post.isReal) {
+      try {
+        await communityService.toggleLike(post.id);
+      } catch {
+        // revert on failure (e.g. not signed in)
+        setLiked(!next);
+        setLikeCount(c => next ? c - 1 : c + 1);
+      }
+    }
+  };
+
+  const toggleComments = async () => {
+    const opening = !showComments;
+    setShowComments(opening);
+    if (opening && post.isReal && !commentsLoaded) {
+      const dbComments = await communityService.getComments(post.id);
+      setComments(dbComments.map(c => ({
+        id: c.id, author: c.is_ai ? 'Vani AI' : (c.author_name || 'Farmer'),
+        isExpert: c.is_ai,
+        avatar: c.is_ai
+          ? 'https://api.dicebear.com/7.x/thumbs/svg?seed=VaniAI&backgroundColor=b1f4c8'
+          : `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(c.author_name || 'Farmer')}`,
+        text: c.content,
+      })));
+      setCommentsLoaded(true);
+    }
   };
 
   const handleAskAI = async () => {
     setAiAnswering(true);
     setShowComments(true);
+    const avatar = 'https://api.dicebear.com/7.x/thumbs/svg?seed=VaniAI&backgroundColor=b1f4c8';
     try {
       const reply = await generateText(
         `A farmer asks: "${post.content}"\n\nGive a concise, practical answer in 2-3 sentences as an agricultural expert. Focus on actionable advice.`,
         'You are an expert Indian agricultural advisor. Give specific, practical advice for Indian farmers.'
       );
-      setComments(prev => [...prev, {
-        id: Date.now(), author: 'Vani AI', isExpert: true,
-        avatar: 'https://api.dicebear.com/7.x/thumbs/svg?seed=VaniAI&backgroundColor=b1f4c8',
-        text: reply
-      }]);
+      setComments(prev => [...prev, { id: Date.now(), author: 'Vani AI', isExpert: true, avatar, text: reply }]);
+      if (post.isReal) communityService.addComment(post.id, reply, { isAi: true }).catch(() => {});
     } catch {
-      setComments(prev => [...prev, {
-        id: Date.now(), author: 'Vani AI', isExpert: true,
-        avatar: 'https://api.dicebear.com/7.x/thumbs/svg?seed=VaniAI&backgroundColor=b1f4c8',
-        text: 'Unable to get AI response at this time. Please try again.'
-      }]);
+      setComments(prev => [...prev, { id: Date.now(), author: 'Vani AI', isExpert: true, avatar, text: 'Unable to get AI response at this time. Please try again.' }]);
     }
     setAiAnswering(false);
   };
 
-  const handleComment = (e) => {
+  const handleComment = async (e) => {
     e.preventDefault();
-    if (!commentText.trim()) return;
+    const text = commentText.trim();
+    if (!text) return;
+    setCommentText('');
+    setShowComments(true);
     setComments(prev => [...prev, {
       id: Date.now(), author: 'You', isExpert: false,
       avatar: 'https://api.dicebear.com/7.x/thumbs/svg?seed=You&backgroundColor=ffdfbf',
-      text: commentText.trim()
+      text
     }]);
-    setCommentText('');
-    setShowComments(true);
+    if (post.isReal) {
+      try { await communityService.addComment(post.id, text, { authorName: authorName || 'You' }); } catch { /* insert failed; comment stays local-only */ }
+    }
   };
 
   return (
@@ -190,7 +265,7 @@ function PostCard({ post, onReply }) {
               <Heart className={`w-4 h-4 ${liked ? 'fill-red-500' : ''}`} />
               <span>{likeCount}</span>
             </button>
-            <button onClick={() => setShowComments(s => !s)} className="flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-green-600 transition-colors">
+            <button onClick={toggleComments} className="flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-green-600 transition-colors">
               <MessageCircle className="w-4 h-4" />
               <span>{comments.length}</span>
             </button>
@@ -253,15 +328,17 @@ function CreatePostModal({ onClose, onCreated, authorName }) {
     if (!content.trim()) return;
     setSubmitting(true);
     try {
-      await supabase.from('community_posts').insert([{
-        author_name: authorName || 'Anonymous',
-        content, category, type: category.toLowerCase().replace(/ & /g, '_').replace(/ /g, '_')
-      }]);
-    } catch {}
-    onCreated({ id: Date.now(), author: authorName || 'You', village: 'Your Location',
-      avatar: `https://api.dicebear.com/7.x/thumbs/svg?seed=You&backgroundColor=ffdfbf`,
-      time: 'Just now', category, crop: 'General', type: 'question', content, images: [], likes: 0, comments: [], shares: 0
-    });
+      const row = await communityService.createPost(content.trim(), category, { authorName: authorName || 'Farmer' });
+      onCreated(mapDbPostToUi(row));
+    } catch (err) {
+      console.error('Falling back to local-only post:', err);
+      onCreated({
+        id: Date.now(), isReal: false, author: authorName || 'You', village: 'Your Location',
+        avatar: `https://api.dicebear.com/7.x/thumbs/svg?seed=You&backgroundColor=ffdfbf`,
+        time: 'Just now', category, crop: 'General', type: CATEGORY_TYPE[category] || 'question',
+        content: content.trim(), images: [], likes: 0, comments: [], shares: 0
+      });
+    }
     setSubmitting(false);
     onClose();
   };
@@ -321,10 +398,9 @@ function CreatePostModal({ onClose, onCreated, authorName }) {
 }
 
 // ── Feed Tab ──────────────────────────────────────────────────────────────────
-function FeedTab({ authorName, onCreatePost }) {
+function FeedTab({ posts, loading, usingSample, onCreatePost, authorName }) {
   const [filter, setFilter] = useState('All');
   const [search, setSearch] = useState('');
-  const [posts, setPosts] = useState(SEED_POSTS);
   const cats = ['All', 'Crop Care', 'Pest & Disease', 'Farming Tip', 'Success Story', 'Market Prices', 'Question'];
 
   const filtered = posts.filter(p => {
@@ -336,6 +412,12 @@ function FeedTab({ authorName, onCreatePost }) {
 
   return (
     <div className="space-y-4">
+      {usingSample && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-center gap-2 text-amber-800 text-xs font-medium">
+          <span>⚠️</span>
+          <span>No community posts yet — showing sample content. Be the first to post!</span>
+        </div>
+      )}
       {/* Search */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 space-y-3">
         <div className="relative">
@@ -364,10 +446,13 @@ function FeedTab({ authorName, onCreatePost }) {
 
       {/* Posts */}
       <div className="space-y-3">
-        {filtered.map(p => (
-          <PostCard key={p.id} post={p} />
+        {loading && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-sm text-gray-400">Loading posts…</div>
+        )}
+        {!loading && filtered.map(p => (
+          <PostCard key={p.id} post={p} authorName={authorName} />
         ))}
-        {filtered.length === 0 && (
+        {!loading && filtered.length === 0 && (
           <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-10 text-center">
             <Search className="w-10 h-10 text-gray-200 mx-auto mb-3" />
             <p className="font-bold text-gray-500">No posts found</p>
@@ -535,7 +620,7 @@ function FarmersTab() {
 }
 
 // ── Events Tab ────────────────────────────────────────────────────────────────
-function EventsTab() {
+function EventsTab({ events, loading, usingSample }) {
   const [registered, setRegistered] = useState(new Set());
   return (
     <div className="space-y-3">
@@ -543,7 +628,15 @@ function EventsTab() {
         <h3 className="font-black text-lg">Upcoming Events</h3>
         <p className="text-orange-100 text-sm mt-1">Workshops, webinars, and farmer meets near you</p>
       </div>
-      {EVENTS.map(e => (
+      {usingSample && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-center gap-2 text-amber-800 text-xs font-medium">
+          <span>⚠️</span><span>No events posted yet — showing sample events.</span>
+        </div>
+      )}
+      {loading && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-sm text-gray-400">Loading events…</div>
+      )}
+      {!loading && events.map(e => (
         <div key={e.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className={`h-1.5 ${EVENT_COLOR[e.type] || 'bg-gray-400'}`} />
           <div className="p-4">
@@ -577,7 +670,52 @@ export default function CommunityPage() {
   const { profile } = useFarmer();
   const [activeTab, setActiveTab] = useState('feed');
   const [showCreate, setShowCreate] = useState(false);
-  const [posts, setPosts] = useState(SEED_POSTS);
+
+  const [posts, setPosts] = useState([]);
+  const [postsLoading, setPostsLoading] = useState(true);
+  const [usingSamplePosts, setUsingSamplePosts] = useState(false);
+
+  const [events, setEvents] = useState([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
+  const [usingSampleEvents, setUsingSampleEvents] = useState(false);
+
+  const loadPosts = useCallback(async () => {
+    setPostsLoading(true);
+    try {
+      const data = await communityService.getPosts();
+      if (data && data.length > 0) {
+        setPosts(data.map(mapDbPostToUi));
+        setUsingSamplePosts(false);
+      } else {
+        setPosts(SEED_POSTS);
+        setUsingSamplePosts(true);
+      }
+    } catch {
+      setPosts(SEED_POSTS);
+      setUsingSamplePosts(true);
+    }
+    setPostsLoading(false);
+  }, []);
+
+  const loadEvents = useCallback(async () => {
+    setEventsLoading(true);
+    try {
+      const data = await communityService.getEvents();
+      if (data && data.length > 0) {
+        setEvents(data.map(mapDbEventToUi));
+        setUsingSampleEvents(false);
+      } else {
+        setEvents(EVENTS);
+        setUsingSampleEvents(true);
+      }
+    } catch {
+      setEvents(EVENTS);
+      setUsingSampleEvents(true);
+    }
+    setEventsLoading(false);
+  }, []);
+
+  useEffect(() => { loadPosts(); loadEvents(); }, [loadPosts, loadEvents]);
 
   const tabs = [
     { id: 'feed',    label: 'Feed',    icon: TrendingUp },
@@ -589,6 +727,7 @@ export default function CommunityPage() {
 
   const handleCreated = (newPost) => {
     setPosts(prev => [newPost, ...prev]);
+    setUsingSamplePosts(false);
     setActiveTab('feed');
   };
 
@@ -627,11 +766,11 @@ export default function CommunityPage() {
 
       {/* Content */}
       <div className="max-w-4xl mx-auto px-4 md:px-8 pt-5 w-full">
-        {activeTab === 'feed'    && <FeedTab authorName={profile?.name} onCreatePost={() => setShowCreate(true)} />}
+        {activeTab === 'feed'    && <FeedTab posts={posts} loading={postsLoading} usingSample={usingSamplePosts} onCreatePost={() => setShowCreate(true)} authorName={profile?.name} />}
         {activeTab === 'groups'  && <GroupsTab />}
         {activeTab === 'qa'      && <QATab />}
         {activeTab === 'farmers' && <FarmersTab />}
-        {activeTab === 'events'  && <EventsTab />}
+        {activeTab === 'events'  && <EventsTab events={events} loading={eventsLoading} usingSample={usingSampleEvents} />}
       </div>
 
       {/* FAB */}

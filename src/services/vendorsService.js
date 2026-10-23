@@ -91,10 +91,32 @@ export const vendorsService = {
         return processVendorsWithDistance(mappedVendors, lat, lon);
       }
       
-      return processVendorsWithDistance(generateFallbackVendors(lat, lon), lat, lon);
+      // If no data in Supabase, fetch real data from Overpass API (OpenStreetMap)
+      const overpassQuery = `[out:json];
+node(around:15000,${lat},${lon})["shop"~"hardware|agrarian|farm|garden_centre|supermarket"];
+out 10;`;
+      
+      const overpassRes = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`);
+      const overpassData = await overpassRes.json();
+      
+      if (overpassData && overpassData.elements && overpassData.elements.length > 0) {
+        const mappedRealVendors = overpassData.elements.map((el, i) => ({
+          id: el.id,
+          name: el.tags.name || el.tags.brand || "Local Agri Store",
+          category: el.tags.shop === 'supermarket' ? 'General Produce' : 'Agri Hardware/Seeds',
+          rating: 4.0 + (Math.random()),
+          position: [el.lat, el.lon],
+          open: true,
+          phone: el.tags.phone || 'Available locally',
+          icon: el.tags.shop === 'supermarket' ? '🏪' : '🚜'
+        }));
+        return processVendorsWithDistance(mappedRealVendors, lat, lon);
+      }
+      
+      return processVendorsWithDistance([], lat, lon);
     } catch (err) {
       console.error("Vendor fetch error:", err);
-      return processVendorsWithDistance(generateFallbackVendors(lat, lon), lat, lon);
+      return processVendorsWithDistance([], lat, lon);
     }
   }
 };

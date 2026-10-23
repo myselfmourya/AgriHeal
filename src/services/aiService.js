@@ -21,7 +21,7 @@ ROUTING MAP (You must map the user's request to one of these routes if they want
 - "/farm-care" -> Farm Care, Satellite Map
 - "/livestock" -> Livestock, Cattle, Animals
 - "/schemes" -> Government Schemes, Yojana, Subsidy
-- "/records" -> Farm Records, Documents
+- "/records" -> Farm Records, Documents, Farm Locker, Locker, Files
 - "/news" -> Agri News, Alerts
 - "/community" -> Community, Forum, Social
 - "/settings" -> Settings, Preferences
@@ -29,19 +29,19 @@ ROUTING MAP (You must map the user's request to one of these routes if they want
 
 INSTRUCTIONS:
 1. Identify the user's true intent, no matter how they phrase it or what language they use.
-2. Decide the absolute best action: "NAVIGATE" to open a feature/page, or "CHAT" to converse/answer.
-3. Respond with a JSON object.
-4. "speech" MUST be in the exact same language/script as the user's voice input. Keep it to 1 sentence.
+2. Decide the absolute best action: "NAVIGATE" to open a feature/page, or "CHAT" to converse/answer/diagnose.
+3. Apply Vani's Voice-First Rules to the "speech" output: Keep it to 1-3 short sentences. Use verbal anchors. Never use markdown. Output MUST be TTS-ready. Use active listening if details are missing. Speak like a friendly village agronomist. 
+4. "speech" MUST be in the exact same language/script as the user's voice input. Translate measurements to local field equivalents.
 
 JSON SCHEMA TO FOLLOW STRICTLY:
-{"speech": "Your vocal response", "action": "NAVIGATE" or "CHAT", "target": "/exact-route-from-list-above" or null}
+{"speech": "Your fully compliant TTS response", "action": "NAVIGATE" or "CHAT", "target": "/exact-route-from-list-above" or null}
   `;
 };
 
 export const generateVaniResponse = async (query, context, lang = 'en-IN') => {
   try {
     const systemPrompt = buildFarmContext(context?.farmer, context?.weather);
-    const fullPrompt = `User Query: ${query}`;
+    const fullPrompt = `User Query: ${query}\n\nIMPORTANT: You MUST respond in ${lang}. Translate completely to ${lang}.`;
     const schema = `{"speech": "response string (in user language)", "action": "NAVIGATE|CHAT", "target": "route string or null"}`;
     
     // Use the structured JSON generator for 100% reliable routing

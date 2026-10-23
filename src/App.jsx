@@ -19,7 +19,6 @@ const CropWorkspace    = lazy(() => import('./pages/crops/CropWorkspace'))
 const CropGrowth       = lazy(() => import('./pages/crops/CropGrowth'))
 const CropIrrigation   = lazy(() => import('./pages/crops/CropIrrigation'))
 const CropFertilizer   = lazy(() => import('./pages/crops/CropFertilizer'))
-const CropPestDisease  = lazy(() => import('./pages/crops/CropPestDisease'))
 const CropMoreTools    = lazy(() => import('./pages/crops/CropMoreTools'))
 const CropSoilHealth   = lazy(() => import('./pages/crops/CropSoilHealth'))
 const CropWeather      = lazy(() => import('./pages/crops/CropWeather'))
@@ -125,10 +124,12 @@ export default function App() {
               <Route path="/home"         element={<FarmerDashboard  setPage={() => {}} onSpeak={() => {}} />} />
             <Route path="/crops"        element={<CropManagement />} />
             <Route path="/crops/:id"            element={<CropWorkspace />} />
-            <Route path="/crops/:id/growth"     element={<CropGrowth />} />
+            <Route path="/crops/:id/growth"     element={<CropWorkspace />} />
+            <Route path="/crops/:id/water"      element={<CropWorkspace />} />
+            <Route path="/crops/:id/nutrition"  element={<CropWorkspace />} />
+            <Route path="/farm-care"            element={<FarmCare />} />
             <Route path="/crops/:id/irrigation" element={<CropIrrigation />} />
             <Route path="/crops/:id/fertilizer" element={<CropFertilizer />} />
-            <Route path="/crops/:id/pest"       element={<CropPestDisease />} />
             <Route path="/crops/:id/more"       element={<CropMoreTools />} />
             <Route path="/crops/:id/soil"       element={<CropSoilHealth />} />
             <Route path="/crops/:id/weather"    element={<CropWeather />} />

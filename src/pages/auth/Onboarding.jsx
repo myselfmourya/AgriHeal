@@ -44,9 +44,8 @@ export default function Onboarding() {
       
       {/* Text Section (Top on mobile, Left on desktop) */}
       <div className="pt-12 px-8 flex flex-col z-20 lg:w-1/2 lg:justify-center lg:px-16">
-        <div className="flex items-center gap-2 mb-1">
-          <Leaf className="w-7 h-7 text-green-600 fill-current" />
-          <span className="text-2xl font-bold text-green-800">AgriHeal</span>
+        <div className="flex items-center mb-1">
+          <img src="/app-logo.jpg" alt="AgriHeal Logo" className="w-10 h-10 object-contain mix-blend-multiply" /> <span className="text-2xl font-bold text-green-800">AgriHeal</span>
         </div>
         <p className="text-sm font-medium text-green-700 mb-12">AI Voice Farming Assistant</p>
 

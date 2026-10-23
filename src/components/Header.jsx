@@ -15,10 +15,10 @@ export default function Header({ selectedDialect, setSelectedDialect, activeTab,
   return (
     <header className="header-card">
       <div className="brand-container">
-        <div className="brand-logo-icon">
-          <Sprout size={28} />
+        <div className="brand-logo-icon overflow-hidden bg-transparent p-0 flex items-center">
+          <img src="/app-logo.jpg" alt="AgriHeal Logo" className="w-10 h-10 object-contain mix-blend-multiply" />
         </div>
-        <div className="brand-title-group">
+        <div className="brand-title-group ml-2">
           <h1>AgriHeal</h1>
           <p>
             <ShieldCheck size={14} color="#10b981" /> Voice-Controlled Farm & Rural Health Engine

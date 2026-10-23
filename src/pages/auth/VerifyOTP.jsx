@@ -42,7 +42,7 @@ export default function VerifyOTP() {
         />
         <div className="absolute top-12 left-0 right-0 flex justify-center items-center gap-2">
           <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-green-800">AgriHeal</span>
+            <img src="/app-logo.jpg" alt="AgriHeal Logo" className="w-10 h-10 object-contain mix-blend-multiply" /> <span className="text-2xl font-bold text-green-800">AgriHeal</span>
           </div>
         </div>
       </div>
