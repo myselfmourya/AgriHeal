@@ -29,6 +29,7 @@ import { generateVaniResponse } from '../services/aiService';
 import { getGlobalContext } from '../services/contextService';
 import { fetchWeatherByCoords } from '../services/weatherService';
 import { supabase } from '../lib/supabase';
+import { describeVoiceActions, getVoiceAction } from '../services/voiceActionRegistry';
 
 export const LANGS = [
   { code: 'en', label: 'English' },
@@ -90,6 +91,11 @@ const NAV_MAP = [
   { route: '/store',          keys: ['store','shop','tool','equipment','buy tools','agri store','दुकान','కొనుగోలు','దుకాణం','கடை','शेत साहित्य'] },
   { route: '/help',           keys: ['help','support','guide','faq','contact support','सहायता','సహాయం','உதவி','मदत'] },
 ];
+
+// ── Confirmation replies ────────────────────────────────────────────────────
+// Multi-language yes/no for the destructive-action confirmation flow.
+const CONFIRM_YES = /\b(yes|yeah|yep|yup|sure|confirm|do it|go ahead|okay|ok|haan|हाँ|हां|ہاں|ஆம்|ஆமா|అవును|हो)\b/i;
+const CONFIRM_NO  = /\b(no|nah|nope|cancel|stop|don'?t|wait|nahi|नहीं|نہیں|இல்லை|வேண்டாம்|వద్దు|कॅन्सल)\b/i;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 const conditionLabel = (c = '') => {
@@ -168,6 +174,9 @@ export const VaniProvider = ({ children }) => {
   const audioRef         = useRef(null);
   const isSpeakingRef    = useRef(false);
   const currentSpeechIdRef = useRef(0);
+  // Holds { actionId, params, description } while waiting for a spoken
+  // yes/no reply to a destructive action — see handleCommand.
+  const pendingActionRef = useRef(null);
 
   // ── Prefs ────────────────────────────────────────────────────────────────
   const getVoicePrefs = () => {
@@ -372,18 +381,43 @@ export const VaniProvider = ({ children }) => {
       }
 
       // Pass the query directly to Mistral for 100% flexible AI-driven control!
-      const aiResponse = await generateVaniResponse(t, { farmer: ctx, weather }, targetLang);
-      
-      return { 
-        speech: aiResponse.text, 
-        action: aiResponse.action?.action || 'NONE', 
-        target: aiResponse.action?.payload?.target || null 
+      // availableActions tells the AI what the CURRENT screen can actually do
+      // (registered via useVoiceActions), so it can match natural-language
+      // requests to a real action instead of just navigating or chatting.
+      const availableActions = describeVoiceActions();
+      const aiResponse = await generateVaniResponse(t, { farmer: ctx, weather, availableActions }, targetLang);
+
+      return {
+        speech: aiResponse.text,
+        action: aiResponse.action?.action || 'NONE',
+        target: aiResponse.action?.payload?.target || null,
+        actionId: aiResponse.action?.payload?.actionId || null,
+        params: aiResponse.action?.payload?.params || {},
       };
     } catch (e) {
       console.error("AI engine processing failed:", e);
       return { speech: "My network connection is a bit slow right now. Could you repeat that?", action: 'NONE', target: null };
     }
   }, [fetchWeatherByLocation]);
+
+  // Runs a registered action's handler and speaks its outcome. Centralized so
+  // both the immediate (non-destructive) and confirmed (destructive) paths
+  // report results the same way.
+  const executeVoiceAction = useCallback(async (actionId, params, fallbackSpeech) => {
+    const def = getVoiceAction(actionId);
+    if (!def) {
+      // The screen likely changed since the AI matched this action (e.g. the
+      // user navigated away while Vani was thinking) — don't pretend it ran.
+      speak("Sorry, I can't do that here anymore. Please try again.");
+      return;
+    }
+    try {
+      const result = await def.handler(params);
+      speak(typeof result === 'string' && result ? result : (fallbackSpeech || 'Done.'));
+    } catch (err) {
+      speak(`Sorry, that didn't work. ${err?.message || ''}`.trim());
+    }
+  }, [speak]);
 
   // ── Handle command (after silence / final result) ─────────────────────────
   const handleCommand = useCallback(async (cmd) => {
@@ -400,17 +434,130 @@ export const VaniProvider = ({ children }) => {
     setTranscript('');
 
     try {
+      // A destructive action is awaiting a spoken yes/no — resolve that
+      // before treating this utterance as a brand-new command.
+      if (pendingActionRef.current) {
+        const pending = pendingActionRef.current;
+        pendingActionRef.current = null;
+        const isYes = CONFIRM_YES.test(clean) && !CONFIRM_NO.test(clean);
+        const isNo = CONFIRM_NO.test(clean);
+
+        if (isYes) {
+          setStatusText('Confirmed — working on it...');
+          await executeVoiceAction(pending.actionId, pending.params, `Done — ${pending.description}.`);
+        } else if (isNo) {
+          speak('Okay, cancelled.');
+        } else {
+          // Ambiguous reply — don't guess on a destructive action.
+          speak("I didn't catch a clear yes or no, so I've cancelled that. Please ask again if you still want it.");
+        }
+        return;
+      }
+
       const res = await processCommand(clean);
       setStatusText(res.speech);
-      speak(res.speech);
-      if (res.action === 'NAVIGATE' && res.target) setTimeout(() => navigate(res.target), 100);
+
+      if (res.action === 'ACTION' && res.actionId) {
+        const def = getVoiceAction(res.actionId);
+        if (def?.destructive) {
+          // Ask first — never run a destructive action on a single pass.
+          pendingActionRef.current = { actionId: res.actionId, params: res.params, description: def.description };
+          speak(`${res.speech} Say yes to confirm, or no to cancel.`);
+        } else {
+          // Don't narrate first and then speak the handler's result — the
+          // second speak() call would cut the first one off mid-sentence.
+          // Speak once, after the action actually ran, with its real outcome.
+          await executeVoiceAction(res.actionId, res.params, res.speech);
+        }
+      } else if (res.action === 'NAVIGATE' && res.target) {
+        speak(res.speech);
+        setTimeout(() => navigate(res.target), 100);
+      } else {
+        speak(res.speech);
+      }
     } catch {
       speak('Sorry, I had an error.');
     } finally {
       processingRef.current = false;
       setTimeout(() => setStatusText(''), 5000);
     }
-  }, [processCommand, speak, navigate]);
+  }, [processCommand, speak, navigate, executeVoiceAction]);
+
+  // ── Push-to-talk fallback (Safari/iOS — no usable Web Speech API) ─────────
+  // Safari either lacks SpeechRecognition entirely or requires a fresh user
+  // gesture per utterance, so the always-listening wake-word loop above
+  // doesn't work there. Instead: the farmer taps and holds a mic button,
+  // we record with MediaRecorder, and transcribe server-side via Groq
+  // Whisper (stt-proxy) — no API key ever reaches the browser.
+  const hasWebSpeech = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  const [isRecordingFallback, setIsRecordingFallback] = useState(false);
+  const mediaRecorderRef = useRef(null);
+  const recordedChunksRef = useRef([]);
+  const mediaStreamRef = useRef(null);
+
+  const transcribeFallback = useCallback(async (audioBlob) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No session');
+
+      const { lang } = getVoicePrefs();
+      const form = new FormData();
+      form.append('audio', audioBlob, 'clip.webm');
+      if (lang && lang !== 'auto') form.append('language', lang);
+
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stt-proxy`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: form,
+      });
+      if (!res.ok) throw new Error(`stt-proxy ${res.status}`);
+      const data = await res.json();
+      return (data.text || '').trim();
+    } catch (e) {
+      console.error('Fallback transcription failed:', e);
+      return '';
+    }
+  }, [getVoicePrefs]);
+
+  const startPushToTalk = useCallback(async () => {
+    if (isRecordingFallback || isSpeakingRef.current) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      recordedChunksRef.current = [];
+
+      const mimeType = ['audio/webm', 'audio/mp4', 'audio/ogg'].find((t) => MediaRecorder.isTypeSupported?.(t)) || '';
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        setIsRecordingFallback(false);
+        const blob = new Blob(recordedChunksRef.current, { type: mimeType || 'audio/webm' });
+        if (blob.size === 0) return;
+        setStatusText('Transcribing...');
+        const text = await transcribeFallback(blob);
+        setStatusText('');
+        if (text) handleCommand(text);
+        else speak("Sorry, I didn't catch that. Please try again.");
+      };
+
+      recorder.start();
+      setIsRecordingFallback(true);
+      setStatusText('🎙️ Listening... release to send');
+    } catch {
+      setMicDenied(true);
+      speak('Microphone access was denied. Please allow it in browser settings.');
+    }
+  }, [isRecordingFallback, transcribeFallback, speak, handleCommand]);
+
+  const stopPushToTalk = useCallback(() => {
+    try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
+  }, []);
 
   // ── Mic permission ────────────────────────────────────────────────────────
   const requestMicPermission = async () => {
@@ -656,6 +803,7 @@ export const VaniProvider = ({ children }) => {
       fetchWeatherByLocation,
       isLiveKitActive, setIsLiveKitActive,
       sessionIntent, startVaniSession,
+      hasWebSpeech, isRecordingFallback, startPushToTalk, stopPushToTalk,
       // compat
       overlay: isLiveKitActive,
       closeVani: () => setIsLiveKitActive(false),

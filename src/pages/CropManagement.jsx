@@ -13,6 +13,7 @@ import {
   AlertCircle, 
   X,
   Edit,
+  Trash2,
   Clock,
   TrendingUp,
   Plus
@@ -25,6 +26,7 @@ import EditCropModal from '../components/EditCropModal';
 import { fertilisers } from '../data/mockFertilisers';
 import { insuranceSchemes } from '../data/mockInsurance';
 import { getNearbyVendors } from '../data/mockVendors';
+import { useVoiceActions } from '../hooks/useVoiceActions';
 
 // Fallback logic for new crops
 export const generateCropDetails = (crop) => {
@@ -46,12 +48,45 @@ const cn = (...classes) => classes.filter(Boolean).join(' ');
 
 // ─── User Crops Tab ─────────────────────────────────────────────────────────
 function UserCropsTab() {
-  const { myCrops } = useFarmer();
+  const { myCrops, addMyCrop, deleteMyCrop } = useFarmer();
   const navigate = useNavigate();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingCrop, setEditingCrop] = useState(null);
 
   const displayCrops = myCrops.map(generateCropDetails);
+
+  const handleDeleteCrop = (crop) => {
+    if (window.confirm(`Remove ${crop.name} from your crops?`)) {
+      deleteMyCrop(crop.id);
+    }
+  };
+
+  useVoiceActions([
+    {
+      id: 'crops.addCrop',
+      description: "Add a new crop to the farmer's crop list, given a crop name",
+      params: { cropName: 'string, required — the name of the crop, e.g. "Tomato"' },
+      destructive: true, // creates a real record — ask for confirmation first
+      handler: async ({ cropName }) => {
+        if (!cropName) throw new Error('No crop name given.');
+        const crop = await addMyCrop({ name: cropName, emoji: '🌱' });
+        return `Added ${crop.name} to your crops.`;
+      },
+    },
+    {
+      id: 'crops.deleteCrop',
+      description: 'Permanently remove a crop from the farmer\'s crop list, given its name',
+      params: { cropName: 'string, required — the name of the crop to remove' },
+      destructive: true,
+      handler: async ({ cropName }) => {
+        if (!cropName) throw new Error('No crop name given.');
+        const match = myCrops.find((c) => c.name.toLowerCase() === String(cropName).toLowerCase());
+        if (!match) throw new Error(`I couldn't find a crop named ${cropName}.`);
+        await deleteMyCrop(match.id);
+        return `Removed ${match.name} from your crops.`;
+      },
+    },
+  ], [myCrops, addMyCrop, deleteMyCrop]);
 
   return (
     <div>
@@ -87,12 +122,20 @@ function UserCropsTab() {
                   <h4 className="font-bold text-gray-900 text-sm leading-tight truncate">
                     {crop.name} {crop.emoji}
                   </h4>
-                  <button 
-                    onClick={() => setEditingCrop(crop)}
-                    className="flex items-center justify-center bg-gray-100 hover:bg-gray-200 p-1.5 rounded-lg transition-colors"
-                  >
-                    <Edit className="h-3 w-3 text-gray-600" />
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => setEditingCrop(crop)}
+                      className="flex items-center justify-center bg-gray-100 hover:bg-gray-200 p-1.5 rounded-lg transition-colors"
+                    >
+                      <Edit className="h-3 w-3 text-gray-600" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCrop(crop)}
+                      className="flex items-center justify-center bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="h-3 w-3 text-red-500" />
+                    </button>
+                  </div>
                 </div>
                 <p className="text-xs text-green-600 font-semibold">{crop.stage} Stage</p>
                 <div className="flex items-center gap-3 text-xs text-gray-500 mt-1 mb-1">
@@ -530,6 +573,21 @@ export default function CropManagement() {
     { id: "vendors", label: "Vendors", icon: MapPin },
   ];
   const [activeTab, setActiveTab] = useState("crops");
+
+  useVoiceActions([
+    {
+      id: 'crops.switchTab',
+      description: 'Switch which section of the Crop Management page is shown: User Crops, Fertilisers, Insurance, or Vendors',
+      params: { tab: 'one of: "crops", "fertilisers", "insurance", "vendors"' },
+      destructive: false,
+      handler: ({ tab }) => {
+        const match = TABS.find((t) => t.id === tab);
+        if (!match) throw new Error(`I don't have a "${tab}" section here.`);
+        setActiveTab(match.id);
+        return `Showing ${match.label}.`;
+      },
+    },
+  ], []);
 
   // Minimal and clean layout mirroring WellPath
   return (

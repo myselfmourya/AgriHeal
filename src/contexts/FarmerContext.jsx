@@ -188,12 +188,11 @@ export function FarmerProvider({ children }) {
   }
 
   const addMyCrop = async (crop) => {
-    const newCrop = { id: Date.now(), ...crop, ...DEFAULT_CROP_DETAILS }
-    const updated = [...myCrops, newCrop]
-    setMyCrops(updated)
-    
+    // Insert first and use the real Supabase row id locally — a client-
+    // generated id (Date.now()) would never match the DB's uuid, so
+    // deleteMyCrop could never actually delete a crop added this session.
     if (profile.id) {
-      await supabase.from('crops').insert([{
+      const { data, error } = await supabase.from('crops').insert([{
         farmer_id: profile.id,
         name: crop.name,
         emoji: crop.emoji || '🌱',
@@ -201,8 +200,20 @@ export function FarmerProvider({ children }) {
         stage: crop.stage,
         health_score: crop.health || 100,
         days_since_sowing: crop.daysSinceSowing || 0
-      }])
+      }]).select().single();
+
+      if (!error && data) {
+        const newCrop = { ...crop, ...DEFAULT_CROP_DETAILS, id: data.id };
+        setMyCrops([...myCrops, newCrop]);
+        return newCrop;
+      }
     }
+
+    // No profile yet, or the insert failed — keep the crop visible locally
+    // rather than silently dropping it; it just won't persist to Supabase.
+    const newCrop = { id: Date.now(), ...crop, ...DEFAULT_CROP_DETAILS };
+    setMyCrops([...myCrops, newCrop]);
+    return newCrop;
   }
 
   const updateMyCrop = (cropId, updatedFields) => {
@@ -213,7 +224,7 @@ export function FarmerProvider({ children }) {
   const deleteMyCrop = async (cropId) => {
     const updated = myCrops.filter(c => c.id !== cropId)
     setMyCrops(updated)
-    if (typeof cropId === 'string') { // Assuming uuid from supabase
+    if (typeof cropId === 'string') { // real crops now always have a Supabase uuid
       await supabase.from('crops').delete().eq('id', cropId)
     }
   }

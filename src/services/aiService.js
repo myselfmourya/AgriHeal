@@ -1,7 +1,21 @@
 import { generateText, generateStructuredResponse, analyzeImage } from './aiProvider';
 import { analyticsService } from './analyticsService';
 
-export const buildFarmContext = (farmerContext, weatherContext) => {
+// Single source of truth for the response schema — used both inside the
+// system prompt (buildFarmContext) and as the separate `schema` argument
+// generateStructuredResponse enforces, so the two can never drift apart.
+const RESPONSE_SCHEMA = `{"speech": "Your fully compliant TTS response", "action": "NAVIGATE" | "CHAT" | "ACTION", "target": "/exact-route-from-list-above" or null, "actionId": "exact id from AVAILABLE ACTIONS" or null, "params": {"paramName": "value", ...} or null}`;
+
+const formatAvailableActions = (availableActions) => {
+  if (!availableActions || availableActions.length === 0) {
+    return 'None right now — the current screen has no voice-operable actions registered. Use NAVIGATE or CHAT instead.';
+  }
+  return availableActions
+    .map((a) => `- id: "${a.id}" | does: ${a.description} | params: ${JSON.stringify(a.params || {})}`)
+    .join('\n');
+};
+
+export const buildFarmContext = (farmerContext, weatherContext, availableActions = []) => {
   return `
 You are Vani, the central AI voice assistant and brain for the AgriHeal app.
 There is no fallback—you process EVERYTHING. You effortlessly understand English, Hindi, Telugu, Tamil, and transliterations.
@@ -27,37 +41,48 @@ ROUTING MAP (You must map the user's request to one of these routes if they want
 - "/settings" -> Settings, Preferences
 - "/profile" -> Profile, Account
 
+AVAILABLE ACTIONS ON THE CURRENT SCREEN (things you can actually DO for the farmer right now, not just navigate to):
+${formatAvailableActions(availableActions)}
+
 INSTRUCTIONS:
-1. Identify the user's true intent, no matter how they phrase it or what language they use.
-2. Decide the absolute best action: "NAVIGATE" to open a feature/page, or "CHAT" to converse/answer/diagnose.
-3. Apply Vani's Voice-First Rules to the "speech" output: Keep it to 1-3 short sentences. Use verbal anchors. Never use markdown. Output MUST be TTS-ready. Use active listening if details are missing. Speak like a friendly village agronomist. 
-4. "speech" MUST be in the exact same language/script as the user's voice input. Translate measurements to local field equivalents.
+1. Identify the user's true intent, no matter how they phrase it or what language they use — this is natural conversation, not fixed commands. A farmer might ask the same thing many different ways.
+2. Decide the absolute best action:
+   - "ACTION" when the farmer wants to actually DO something that matches one of the AVAILABLE ACTIONS above (e.g. add/delete/update something, perform a task). Set "actionId" to its exact id and fill "params" with everything you can extract from their words — ask a clarifying question in "speech" instead if a required param is missing or ambiguous, and leave actionId null until you have it.
+   - "NAVIGATE" to open a different page/feature when no available action fits but a route does.
+   - "CHAT" to converse, answer, diagnose, or explain when neither applies.
+3. Never invent an actionId that isn't in AVAILABLE ACTIONS. If nothing fits, use NAVIGATE or CHAT instead.
+4. Apply Vani's Voice-First Rules to the "speech" output: Keep it to 1-3 short sentences. Use verbal anchors. Never use markdown. Output MUST be TTS-ready. Use active listening if details are missing. Speak like a friendly village agronomist.
+5. "speech" MUST be in the exact same language/script as the user's voice input. Translate measurements to local field equivalents.
 
 JSON SCHEMA TO FOLLOW STRICTLY:
-{"speech": "Your fully compliant TTS response", "action": "NAVIGATE" or "CHAT", "target": "/exact-route-from-list-above" or null}
+${RESPONSE_SCHEMA}
   `;
 };
 
 export const generateVaniResponse = async (query, context, lang = 'en-IN') => {
   try {
-    const systemPrompt = buildFarmContext(context?.farmer, context?.weather);
+    const availableActions = context?.availableActions || [];
+    const systemPrompt = buildFarmContext(context?.farmer, context?.weather, availableActions);
     const fullPrompt = `User Query: ${query}\n\nIMPORTANT: You MUST respond in ${lang}. Translate completely to ${lang}.`;
-    const schema = `{"speech": "response string (in user language)", "action": "NAVIGATE|CHAT", "target": "route string or null"}`;
-    
+
     // Use the structured JSON generator for 100% reliable routing
-    const aiResponse = await generateStructuredResponse(fullPrompt, schema, systemPrompt);
+    const aiResponse = await generateStructuredResponse(fullPrompt, RESPONSE_SCHEMA, systemPrompt);
 
     analyticsService.trackEvent('AI_QUERY_RESOLVED', {
       engine: 'mistral-large',
       lang,
-      hasAction: aiResponse.action === 'NAVIGATE'
+      hasAction: aiResponse.action === 'NAVIGATE' || aiResponse.action === 'ACTION'
     });
 
     return {
       text: aiResponse.speech || "I processed your request.",
       action: {
         action: aiResponse.action || 'NONE',
-        payload: { target: aiResponse.target || null }
+        payload: {
+          target: aiResponse.target || null,
+          actionId: aiResponse.actionId || null,
+          params: aiResponse.params || {},
+        }
       },
       source: 'AI Brain'
     };
