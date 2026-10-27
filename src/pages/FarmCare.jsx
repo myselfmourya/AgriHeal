@@ -1,26 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  CloudRain, Sun, Wind, Droplets, 
+import {
+  CloudRain, Sun, Wind, Droplets,
   MapPin, Activity, Beaker, ShieldAlert,
   Droplet, Calendar, Zap, Clock, Wheat,
   Bug, Flame, Snowflake, ActivitySquare, CheckCircle,
-     Sunrise, Sunset, Gauge, Calendar as CalendarIcon
+     Sunrise, Sunset, Gauge, Calendar as CalendarIcon,
+  Leaf, Loader2, Satellite
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useFarmer } from '../contexts/FarmerContext';
+import { fetchVegetationHealth } from '../services/satelliteService';
 
 export default function FarmCare() {
   const navigate = useNavigate();
   const { notifications } = useFarmer();
   const reminderTasks = notifications.filter(n => n.type === 'Reminder');
   const [locationName, setLocationName] = useState('Fetching location...');
-  
+  const [vegetation, setVegetation] = useState(null);
+  const [vegetationLoading, setVegetationLoading] = useState(true);
+  const [vegetationError, setVegetationError] = useState(null);
+
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
+          const { latitude, longitude } = position.coords;
           try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${position.coords.latitude}&lon=${position.coords.longitude}&format=json`);
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
             const data = await res.json();
             const city = data.address.state_district || data.address.city || data.address.town || 'Your Farm';
             const state = data.address.state || '';
@@ -28,11 +34,26 @@ export default function FarmCare() {
           } catch (error) {
             setLocationName('Field 1 (Paddy) • Active Monitoring');
           }
+
+          try {
+            const result = await fetchVegetationHealth(latitude, longitude);
+            setVegetation(result);
+          } catch (error) {
+            setVegetationError(error.message);
+          } finally {
+            setVegetationLoading(false);
+          }
         },
-        () => setLocationName('Field 1 (Paddy) • Active Monitoring')
+        () => {
+          setLocationName('Field 1 (Paddy) • Active Monitoring');
+          setVegetationError('Location access is needed to fetch real satellite data.');
+          setVegetationLoading(false);
+        }
       );
     } else {
       setLocationName('Field 1 (Paddy) • Active Monitoring');
+      setVegetationError('Geolocation is not supported by this browser.');
+      setVegetationLoading(false);
     }
   }, []);
 
@@ -105,7 +126,7 @@ export default function FarmCare() {
 
       <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-center gap-2 text-amber-800 text-sm">
         <span>⚠️</span>
-        <span><strong>Soil, irrigation, pest-risk, and forecast data below are simulated for demo purposes.</strong> No soil sensors or satellite feed are connected to your farm yet — do not use these readings for real irrigation, spraying, or fertilizer decisions.</span>
+        <span><strong>Weather, soil, irrigation, pest-risk, and forecast data below are simulated for demo purposes.</strong> No soil or weather sensors are connected to your farm yet — do not use these readings for real irrigation, spraying, or fertilizer decisions. Vegetation Health below is real, live Sentinel-2 satellite data.</span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
@@ -303,6 +324,54 @@ export default function FarmCare() {
                 </div>
               ))}
             </div>
+          </section>
+
+          {/* Vegetation Health (Live Satellite — Planetary Computer / Sentinel-2) */}
+          <section className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                <Satellite className="w-5 h-5 text-green-600" /> Vegetation Health
+              </h2>
+              <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-green-100 text-green-700">Live</span>
+            </div>
+
+            {vegetationLoading && (
+              <div className="flex items-center gap-2 text-slate-400 text-xs font-bold py-4">
+                <Loader2 className="w-4 h-4 animate-spin" /> Reading latest Sentinel-2 scene...
+              </div>
+            )}
+
+            {!vegetationLoading && vegetationError && (
+              <p className="text-xs font-medium text-slate-500 py-2">{vegetationError}</p>
+            )}
+
+            {!vegetationLoading && vegetation && (() => {
+              const ndvi = vegetation.ndvi;
+              const health = ndvi >= 0.6
+                ? { label: 'Dense & Healthy', color: 'text-green-700', bg: 'bg-green-100' }
+                : ndvi >= 0.4
+                ? { label: 'Moderate', color: 'text-amber-700', bg: 'bg-amber-100' }
+                : ndvi >= 0.2
+                ? { label: 'Sparse', color: 'text-orange-700', bg: 'bg-orange-100' }
+                : { label: 'Stressed / Bare Soil', color: 'text-red-700', bg: 'bg-red-100' };
+              return (
+                <div>
+                  <div className="flex items-end justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Leaf className={`w-5 h-5 ${health.color}`} />
+                      <span className="text-2xl font-black text-slate-800">{ndvi.toFixed(2)}</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">NDVI</span>
+                    </div>
+                    <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-full ${health.bg} ${health.color}`}>
+                      {health.label}
+                    </span>
+                  </div>
+                  <p className="text-[10px] font-medium text-slate-500">
+                    Scene: {vegetation.sceneDate ? new Date(vegetation.sceneDate).toLocaleDateString() : 'Unknown date'} • Cloud cover: {vegetation.cloudCover != null ? `${vegetation.cloudCover.toFixed(1)}%` : 'N/A'}
+                  </p>
+                </div>
+              );
+            })()}
           </section>
 
           {/* Soil Health Monitor */}
