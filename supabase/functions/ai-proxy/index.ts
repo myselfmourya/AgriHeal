@@ -29,7 +29,11 @@ const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ?? "http://localhost:51
   .map((o) => o.trim());
 
 function corsHeaders(origin: string | null): Record<string, string> {
-  const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  // Any localhost/127.0.0.1 origin is allowed regardless of port — dev servers
+  // pick a fallback port when the default is busy (e.g. 5174 instead of 5173).
+  // Non-local origins must still match ALLOWED_ORIGINS exactly.
+  const isLocalDev = !!origin && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+  const allowed = origin && (ALLOWED_ORIGINS.includes(origin) || isLocalDev) ? origin : ALLOWED_ORIGINS[0];
   return {
     "Access-Control-Allow-Origin": allowed,
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
