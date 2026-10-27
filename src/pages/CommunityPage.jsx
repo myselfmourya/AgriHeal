@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Heart, MessageCircle, Share2, MoreVertical, CheckCircle2,
-  Search, Filter, Plus, X, Camera, Mic, Globe2, Users,
-  MapPin, Calendar, Megaphone, HelpCircle, Star, ChevronRight,
-  BookOpen, TrendingUp, Leaf, Send, Image as ImageIcon
+  Search, Plus, X, Mic, Globe2, Users,
+  MapPin, Calendar, Megaphone, HelpCircle,
+  TrendingUp, Send, Image as ImageIcon
 } from 'lucide-react';
 import { useFarmer } from '../contexts/FarmerContext';
 import { generateText } from '../services/aiProvider';
@@ -50,7 +50,7 @@ function mapDbPostToUi(row) {
     crop: 'General',
     type: CATEGORY_TYPE[category] || 'question',
     content: row.content,
-    images: [],
+    images: row.image_url ? [row.image_url] : [],
     likes: row.likes || 0,
     comments: [],
     shares: 0,
@@ -111,14 +111,6 @@ const GROUPS = [
   { id: 4, emoji: '🍅', name: 'Vegetable Growers', members: '6.4k', desc: 'Seasonal vegetables, pricing, market tips' },
   { id: 5, emoji: '📍', name: 'Telangana Kisan Sabha', members: '3.2k', desc: 'Local farmers network — Warangal & Karimnagar' },
   { id: 6, emoji: '🌿', name: 'Medicinal Plants', members: '1.8k', desc: 'Turmeric, Aloe vera, Ashwagandha cultivation' },
-];
-
-const FARMERS = [
-  { id: 1, name: 'Dr. Srinivas Rao', village: 'Warangal', crops: ['Agricultural Scientist'], exp: '20 yrs', isExpert: true, avatar: 'https://api.dicebear.com/7.x/thumbs/svg?seed=DrSrinivas&backgroundColor=c8e6ff' },
-  { id: 2, name: 'Naresh Kumar', village: 'Hanamkonda', crops: ['Cotton', 'Maize'], exp: '15 yrs', isExpert: false, avatar: 'https://api.dicebear.com/7.x/thumbs/svg?seed=Naresh2&backgroundColor=ffd5c8' },
-  { id: 3, name: 'Lakshmi Devi', village: 'Narsampet', crops: ['Tomato', 'Chilli'], exp: '8 yrs', isExpert: false, avatar: 'https://api.dicebear.com/7.x/thumbs/svg?seed=Lakshmi&backgroundColor=ffd5e8' },
-  { id: 4, name: 'Venkat Rao', village: 'Gudur, AP', crops: ['Paddy', 'Pulses'], exp: '25 yrs', isExpert: false, avatar: 'https://api.dicebear.com/7.x/thumbs/svg?seed=VenkatFarmer&backgroundColor=ffe5b4' },
-  { id: 5, name: 'Kavita Sharma', village: 'Kazipet', crops: ['Organic Veggies'], exp: '5 yrs', isExpert: false, avatar: 'https://api.dicebear.com/7.x/thumbs/svg?seed=Kavita&backgroundColor=e8d5ff' },
 ];
 
 const EVENTS = [
@@ -322,13 +314,43 @@ function CreatePostModal({ onClose, onCreated, authorName }) {
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('Question');
   const [submitting, setSubmitting] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [imageError, setImageError] = useState('');
+  const fileInputRef = useRef(null);
   const cats = ['Question', 'Crop Care', 'Pest & Disease', 'Farming Tip', 'Success Story', 'Market Prices'];
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setImageError('Please choose an image file.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setImageError('Image must be under 5MB.');
+      return;
+    }
+    setImageError('');
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const handlePost = async () => {
     if (!content.trim()) return;
     setSubmitting(true);
     try {
-      const row = await communityService.createPost(content.trim(), category, { authorName: authorName || 'Farmer' });
+      let imageUrl = null;
+      if (imageFile) {
+        imageUrl = await communityService.uploadPostImage(imageFile);
+      }
+      const row = await communityService.createPost(content.trim(), category, { authorName: authorName || 'Farmer', imageUrl });
       onCreated(mapDbPostToUi(row));
     } catch (err) {
       console.error('Falling back to local-only post:', err);
@@ -336,7 +358,7 @@ function CreatePostModal({ onClose, onCreated, authorName }) {
         id: Date.now(), isReal: false, author: authorName || 'You', village: 'Your Location',
         avatar: `https://api.dicebear.com/7.x/thumbs/svg?seed=You&backgroundColor=ffdfbf`,
         time: 'Just now', category, crop: 'General', type: CATEGORY_TYPE[category] || 'question',
-        content: content.trim(), images: [], likes: 0, comments: [], shares: 0
+        content: content.trim(), images: imagePreview ? [imagePreview] : [], likes: 0, comments: [], shares: 0
       });
     }
     setSubmitting(false);
@@ -377,13 +399,23 @@ function CreatePostModal({ onClose, onCreated, authorName }) {
               ))}
             </div>
           </div>
+          {imagePreview && (
+            <div className="relative mt-4 rounded-xl overflow-hidden border border-gray-100 w-fit">
+              <img src={imagePreview} alt="Selected" className="max-h-48 object-cover" />
+              <button onClick={removeImage} className="absolute top-2 right-2 p-1 bg-black/60 rounded-full text-white hover:bg-black/80">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+          {imageError && <p className="text-xs text-red-500 mt-2">{imageError}</p>}
         </div>
         <div className="p-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between shrink-0">
           <div className="flex gap-2">
-            <button className="p-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-xs text-gray-500">
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
+            <button onClick={() => fileInputRef.current?.click()} className="p-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-xs text-gray-500">
               <ImageIcon className="w-4 h-4 text-blue-400" />
             </button>
-            <button className="p-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-xs text-gray-500">
+            <button className="p-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-xs text-gray-500" title="Voice input coming soon">
               <Mic className="w-4 h-4 text-red-400" />
             </button>
           </div>
@@ -466,28 +498,75 @@ function FeedTab({ posts, loading, usingSample, onCreatePost, authorName }) {
 
 // ── Groups Tab ────────────────────────────────────────────────────────────────
 function GroupsTab() {
-  const [joined, setJoined] = useState(new Set([1]));
+  const [groups, setGroups] = useState([]);
+  const [joined, setJoined] = useState(new Set());
+  const [loading, setLoading] = useState(true);
+  const [usingSample, setUsingSample] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const [dbGroups, myGroupIds] = await Promise.all([
+        communityService.getGroups(),
+        communityService.getMyGroupIds(),
+      ]);
+      if (!active) return;
+      if (dbGroups.length > 0) {
+        setGroups(dbGroups);
+        setUsingSample(false);
+      } else {
+        setGroups(GROUPS);
+        setUsingSample(true);
+      }
+      setJoined(new Set(myGroupIds));
+      setLoading(false);
+    })();
+    return () => { active = false; };
+  }, []);
+
+  const totalMembers = groups.reduce((sum, g) => sum + (typeof g.members === 'number' ? g.members : 0), 0);
+
+  const toggleJoin = async (g) => {
+    const isJoined = joined.has(g.id);
+    setJoined(prev => { const s = new Set(prev); isJoined ? s.delete(g.id) : s.add(g.id); return s; });
+    if (usingSample) return; // sample groups have no real id to persist against
+    try {
+      if (isJoined) await communityService.leaveGroup(g.id);
+      else await communityService.joinGroup(g.id);
+    } catch {
+      setJoined(prev => { const s = new Set(prev); isJoined ? s.add(g.id) : s.delete(g.id); return s; });
+    }
+  };
+
   return (
     <div className="space-y-3">
       <div className="bg-gradient-to-br from-green-600 to-emerald-700 rounded-2xl p-5 text-white">
         <h3 className="font-black text-lg">Discussion Groups</h3>
         <p className="text-green-100 text-sm mt-1">Join groups to connect with farmers who grow the same crops</p>
         <div className="flex gap-4 mt-4 text-center">
-          <div><p className="font-black text-2xl">{GROUPS.length}</p><p className="text-green-100 text-xs">Groups</p></div>
-          <div><p className="font-black text-2xl">45k+</p><p className="text-green-100 text-xs">Members</p></div>
+          <div><p className="font-black text-2xl">{groups.length}</p><p className="text-green-100 text-xs">Groups</p></div>
+          <div><p className="font-black text-2xl">{totalMembers}</p><p className="text-green-100 text-xs">Members</p></div>
           <div><p className="font-black text-2xl">{joined.size}</p><p className="text-green-100 text-xs">Joined</p></div>
         </div>
       </div>
-      {GROUPS.map(g => (
+      {usingSample && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-center gap-2 text-amber-800 text-xs font-medium">
+          <span>⚠️</span><span>Couldn't load real groups — showing sample content.</span>
+        </div>
+      )}
+      {loading && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-sm text-gray-400">Loading groups…</div>
+      )}
+      {!loading && groups.map(g => (
         <div key={g.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-green-50 flex items-center justify-center text-2xl shrink-0">{g.emoji}</div>
           <div className="flex-1 min-w-0">
             <h4 className="font-bold text-slate-800 text-sm">{g.name}</h4>
             <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{g.desc}</p>
-            <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1"><Users className="w-3 h-3" />{g.members} members</p>
+            <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1"><Users className="w-3 h-3" />{g.members} {g.members === 1 ? 'member' : 'members'}</p>
           </div>
           <button
-            onClick={() => setJoined(prev => { const s = new Set(prev); s.has(g.id) ? s.delete(g.id) : s.add(g.id); return s; })}
+            onClick={() => toggleJoin(g)}
             className={`text-xs font-black px-4 py-2 rounded-xl shrink-0 transition-colors ${joined.has(g.id) ? 'bg-gray-100 text-gray-500' : 'bg-green-600 text-white hover:bg-green-700'}`}>
             {joined.has(g.id) ? 'Joined ✓' : 'Join'}
           </button>
@@ -578,41 +657,62 @@ function QATab() {
 }
 
 // ── Nearby Farmers Tab ────────────────────────────────────────────────────────
+function mapDbFarmerToUi(row) {
+  return {
+    id: row.id,
+    name: row.full_name || 'Farmer',
+    village: row.village || row.district || row.state || 'India',
+    exp: row.experience_years ? `${row.experience_years} yrs` : null,
+    phone: row.phone || null,
+    avatar: `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(row.full_name || row.id)}`,
+  };
+}
+
 function FarmersTab() {
+  const [farmers, setFarmers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    communityService.getFarmers().then(rows => {
+      if (!active) return;
+      setFarmers(rows.map(mapDbFarmerToUi));
+      setLoading(false);
+    });
+    return () => { active = false; };
+  }, []);
+
   return (
     <div className="space-y-3">
       <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-2xl p-5 text-white">
-        <h3 className="font-black text-lg">Nearby Farmers Network</h3>
-        <p className="text-purple-100 text-sm mt-1">Connect with experienced farmers and agricultural experts</p>
+        <h3 className="font-black text-lg">Farmers Directory</h3>
+        <p className="text-purple-100 text-sm mt-1">Other AgriHeal farmers you can reach out to</p>
       </div>
-      {FARMERS.map(f => (
+      {loading && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-sm text-gray-400">Loading farmers…</div>
+      )}
+      {!loading && farmers.length === 0 && (
+        <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-10 text-center">
+          <MapPin className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+          <p className="font-bold text-gray-500">No other farmers yet</p>
+          <p className="text-xs text-gray-400 mt-1">This directory fills up as more farmers join AgriHeal</p>
+        </div>
+      )}
+      {!loading && farmers.map(f => (
         <div key={f.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-4">
-          <div className="relative">
-            <img src={f.avatar} alt={f.name} className="w-12 h-12 rounded-full border border-gray-100" />
-            {f.isExpert && (
-              <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-blue-500 rounded-full border-2 border-white flex items-center justify-center">
-                <Star className="w-2.5 h-2.5 text-white fill-white" />
-              </div>
-            )}
-          </div>
+          <img src={f.avatar} alt={f.name} className="w-12 h-12 rounded-full border border-gray-100" />
           <div className="flex-1 min-w-0">
-            <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1">
-              {f.name}
-              {f.isExpert && <span className="text-[9px] bg-blue-100 text-blue-700 font-black px-1.5 py-0.5 rounded-full">EXPERT</span>}
-            </h4>
+            <h4 className="font-bold text-slate-800 text-sm">{f.name}</h4>
             <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5"><MapPin className="w-3 h-3" />{f.village}</p>
-            <div className="flex flex-wrap gap-1 mt-1.5">
-              {f.crops.map(c => (
-                <span key={c} className="text-[9px] bg-green-50 text-green-700 border border-green-100 font-bold px-2 py-0.5 rounded-full">{c}</span>
-              ))}
-            </div>
+            {f.exp && <p className="text-[10px] text-slate-400 mt-1">{f.exp} experience</p>}
           </div>
-          <div className="text-right">
-            <p className="text-[10px] text-slate-400 mb-2">{f.exp}</p>
-            <button className="text-xs font-black text-green-600 bg-green-50 border border-green-100 px-3 py-1.5 rounded-xl hover:bg-green-100 transition-colors">
-              Connect
-            </button>
-          </div>
+          {f.phone ? (
+            <a href={`tel:${f.phone}`} className="text-xs font-black text-green-600 bg-green-50 border border-green-100 px-3 py-1.5 rounded-xl hover:bg-green-100 transition-colors shrink-0">
+              Call
+            </a>
+          ) : (
+            <span className="text-xs font-bold text-gray-300 px-3 py-1.5 shrink-0">No phone</span>
+          )}
         </div>
       ))}
     </div>
@@ -622,6 +722,23 @@ function FarmersTab() {
 // ── Events Tab ────────────────────────────────────────────────────────────────
 function EventsTab({ events, loading, usingSample }) {
   const [registered, setRegistered] = useState(new Set());
+
+  useEffect(() => {
+    communityService.getMyEventRegistrations().then(ids => setRegistered(new Set(ids)));
+  }, []);
+
+  const toggleRegister = async (e) => {
+    const id = String(e.id);
+    const wasRegistered = registered.has(id);
+    setRegistered(prev => { const s = new Set(prev); wasRegistered ? s.delete(id) : s.add(id); return s; });
+    try {
+      if (wasRegistered) await communityService.unregisterFromEvent(id);
+      else await communityService.registerForEvent(id);
+    } catch {
+      setRegistered(prev => { const s = new Set(prev); wasRegistered ? s.add(id) : s.delete(id); return s; });
+    }
+  };
+
   return (
     <div className="space-y-3">
       <div className="bg-gradient-to-br from-orange-500 to-amber-600 rounded-2xl p-5 text-white">
@@ -654,9 +771,9 @@ function EventsTab({ events, loading, usingSample }) {
               </div>
             </div>
             <button
-              onClick={() => setRegistered(prev => { const s = new Set(prev); s.has(e.id) ? s.delete(e.id) : s.add(e.id); return s; })}
-              className={`mt-3 w-full py-2.5 rounded-xl text-xs font-black transition-colors ${registered.has(e.id) ? 'bg-gray-100 text-gray-500' : 'bg-green-600 text-white hover:bg-green-700'}`}>
-              {registered.has(e.id) ? '✓ Registered' : 'Register Now'}
+              onClick={() => toggleRegister(e)}
+              className={`mt-3 w-full py-2.5 rounded-xl text-xs font-black transition-colors ${registered.has(String(e.id)) ? 'bg-gray-100 text-gray-500' : 'bg-green-600 text-white hover:bg-green-700'}`}>
+              {registered.has(String(e.id)) ? '✓ Registered' : 'Register Now'}
             </button>
           </div>
         </div>
