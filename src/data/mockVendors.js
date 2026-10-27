@@ -1,3 +1,8 @@
+// Real nearby agri vendors via OpenStreetMap's free, keyless Overpass API.
+// Returns [] when nothing is found nearby — never fabricated vendors, names,
+// phone numbers, or ratings, since OSM doesn't carry ratings and a made-up
+// phone number is actively misleading.
+
 // Calculate distance in km
 const getDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371;
@@ -23,6 +28,7 @@ export const getNearbyVendors = async (lat, lon, radius = 25000) => {
         node["shop"="seed"](around:${radius},${lat},${lon});
         node["shop"="fertilizer"](around:${radius},${lat},${lon});
         node["shop"="agricultural_supplies"](around:${radius},${lat},${lon});
+        node["shop"="garden_centre"](around:${radius},${lat},${lon});
       );
       out body 20;
     `;
@@ -30,11 +36,11 @@ export const getNearbyVendors = async (lat, lon, radius = 25000) => {
       method: 'POST',
       body: query
     });
-    
+
     if (!res.ok) throw new Error('Network error');
-    
+
     const data = await res.json();
-    
+
     if (data.elements && data.elements.length > 0) {
       return data.elements.map(el => {
         const type = el.tags.shop === 'agrarian' || el.tags.shop === 'farm' ? 'Retailer' : 'Mandi';
@@ -47,31 +53,15 @@ export const getNearbyVendors = async (lat, lon, radius = 25000) => {
           lon: el.lon,
           distance: getDistance(lat, lon, el.lat, el.lon),
           phone: el.tags.phone || el.tags['contact:phone'] || null,
-          rating: (Math.random() * 1 + 4).toFixed(1) // Keep mock rating
+          rating: null, // OSM carries no ratings — never fabricate one
         };
       }).sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
     }
 
-    // If Overpass is empty, use Nominatim to generate realistic vendors based on actual local town names
-    const rev = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`);
-    const revData = await rev.json();
-    const locName = revData.address?.city || revData.address?.town || revData.address?.county || revData.address?.state_district || "Local Area";
-
-    return [
-      { id: 1, name: `${locName} APMC Market`, type: "Mandi", address: `Main Market Yard, ${locName}`, lat: lat + 0.015, lon: lon + 0.012, distance: (Math.random() * 5 + 1).toFixed(1), phone: "+91 9876543210", rating: 4.5 },
-      { id: 2, name: `${locName} Kisan Fertilizers`, type: "Retailer", address: `Main Road, ${locName}`, lat: lat - 0.02, lon: lon + 0.01, distance: (Math.random() * 3 + 0.5).toFixed(1), phone: "+91 9988776655", rating: 4.2 },
-      { id: 3, name: `${locName} Agro Tech`, type: "Machinery", address: `Industrial Area, ${locName}`, lat: lat + 0.005, lon: lon - 0.03, distance: (Math.random() * 8 + 2).toFixed(1), phone: "+91 8877665544", rating: 4.8 }
-    ].sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
-
+    // No vendors found nearby — return an honest empty list, not fake entries.
+    return [];
   } catch (err) {
-    console.error('API failed, falling back to basic data:', err);
+    console.error('Vendor fetch failed:', err);
+    return [];
   }
-
-  // Absolute lowest fallback if network totally fails
-  const vendors = [
-    { id: 1, name: "APMC Main Market", type: "Mandi", address: "Agricultural Produce Market Committee Yard", lat: lat + 0.015, lon: lon + 0.012, distance: (Math.random() * 5 + 1).toFixed(1), phone: "+91 9876543210", rating: 4.5 },
-    { id: 2, name: "Kisan Fertilizers", type: "Retailer", address: "Main Road, Near Bus Stand", lat: lat - 0.02, lon: lon + 0.01, distance: (Math.random() * 3 + 0.5).toFixed(1), phone: "+91 9988776655", rating: 4.2 },
-    { id: 3, name: "Agro Tech Equipment", type: "Machinery", address: "Industrial Area, Phase 1", lat: lat + 0.005, lon: lon - 0.03, distance: (Math.random() * 8 + 2).toFixed(1), phone: "+91 8877665544", rating: 4.8 }
-  ];
-  return vendors.sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
 };

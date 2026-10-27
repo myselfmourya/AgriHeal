@@ -31,49 +31,68 @@ function processVendorsWithDistance(vendors, userLat, userLon) {
   });
 }
 
+// Map an OpenStreetMap shop tag to a reader-friendly category + icon.
+// No rating is fabricated here — OSM doesn't carry ratings, so vendors from
+// Overpass simply have no `rating` field; the UI hides the rating badge
+// when it's absent instead of showing a fake number.
+const SHOP_TAG_INFO = {
+  agrarian: { category: 'Farm Supplies & Seeds', icon: '🌾' },
+  farm: { category: 'Farm Produce', icon: '🚜' },
+  garden_centre: { category: 'Garden & Seeds', icon: '🌱' },
+  hardware: { category: 'Hardware & Tools', icon: '🔧' },
+  doityourself: { category: 'Hardware & Tools', icon: '🔧' },
+  supermarket: { category: 'General Store', icon: '🏪' },
+};
+
+const describeShopTag = (shopTag) =>
+  SHOP_TAG_INFO[shopTag] ?? { category: 'Agri Store', icon: '🏪' };
+
 export const vendorsService = {
   getNearbyVendors: async (lat, lon) => {
     try {
       const { data: vendorsData, error } = await supabase.from('vendors').select('*');
-      
+
       if (error) throw error;
-      
+
       if (vendorsData && vendorsData.length > 0) {
         const mappedVendors = vendorsData.map(v => ({
           id: v.id,
           name: v.name,
           category: v.category || 'General',
-          rating: v.rating || 4.0,
+          rating: v.rating ?? null,
           position: [v.latitude, v.longitude],
           open: v.is_open,
-          phone: v.phone || '+91 00000 00000',
+          phone: v.phone || null,
           icon: v.icon || '🏪'
         }));
         return processVendorsWithDistance(mappedVendors, lat, lon);
       }
-      
+
       // If no data in Supabase, fetch real data from Overpass API (OpenStreetMap)
       const overpassQuery = `[out:json];
-node(around:15000,${lat},${lon})["shop"~"hardware|agrarian|farm|garden_centre|supermarket"];
-out 10;`;
-      
+node(around:15000,${lat},${lon})["shop"~"hardware|agrarian|farm|garden_centre|doityourself|supermarket"];
+out 15;`;
+
       const overpassRes = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`);
       const overpassData = await overpassRes.json();
-      
+
       if (overpassData && overpassData.elements && overpassData.elements.length > 0) {
-        const mappedRealVendors = overpassData.elements.map((el, i) => ({
-          id: el.id,
-          name: el.tags.name || el.tags.brand || "Local Agri Store",
-          category: el.tags.shop === 'supermarket' ? 'General Produce' : 'Agri Hardware/Seeds',
-          rating: 4.0 + (Math.random()),
-          position: [el.lat, el.lon],
-          open: true,
-          phone: el.tags.phone || 'Available locally',
-          icon: el.tags.shop === 'supermarket' ? '🏪' : '🚜'
-        }));
+        const mappedRealVendors = overpassData.elements.map((el) => {
+          const { category, icon } = describeShopTag(el.tags.shop);
+          return {
+            id: el.id,
+            name: el.tags.name || el.tags.brand || "Local Agri Store",
+            category,
+            rating: null,
+            position: [el.lat, el.lon],
+            open: null, // OSM data has no reliable live open/closed status
+            phone: el.tags.phone || el.tags['contact:phone'] || null,
+            icon,
+          };
+        });
         return processVendorsWithDistance(mappedRealVendors, lat, lon);
       }
-      
+
       return processVendorsWithDistance([], lat, lon);
     } catch (err) {
       console.error("Vendor fetch error:", err);

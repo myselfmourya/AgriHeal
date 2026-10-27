@@ -166,7 +166,9 @@ export default function LocalVendorsPage() {
                       </div>
                       <p className="text-xs text-slate-500 font-bold mb-2">{v.category}</p>
                       <div className="flex items-center justify-between text-xs mb-2">
-                        <span className="flex items-center gap-1 text-yellow-600 font-bold"><Star className="w-3 h-3 fill-yellow-400" /> {v.rating}</span>
+                        {v.rating != null && (
+                          <span className="flex items-center gap-1 text-yellow-600 font-bold"><Star className="w-3 h-3 fill-yellow-400" /> {v.rating.toFixed(1)}</span>
+                        )}
                         <span className="flex items-center gap-1 text-slate-500"><MapPin className="w-3 h-3" /> {v.distance}</span>
                       </div>
                       <button 
@@ -204,20 +206,30 @@ export default function LocalVendorsPage() {
                       <p className="text-[10px] font-bold text-slate-500 uppercase">{v.category}</p>
                     </div>
                   </div>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${v.open ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    {v.open ? 'OPEN' : 'CLOSED'}
-                  </span>
+                  {v.open != null && (
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${v.open ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      {v.open ? 'OPEN' : 'CLOSED'}
+                    </span>
+                  )}
                 </div>
-                
+
                 <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-50 text-xs font-medium text-slate-600">
-                  <span className="flex items-center gap-1 text-yellow-600 font-bold"><Star className="w-3.5 h-3.5 fill-yellow-400" /> {v.rating}</span>
+                  {v.rating != null && (
+                    <span className="flex items-center gap-1 text-yellow-600 font-bold"><Star className="w-3.5 h-3.5 fill-yellow-400" /> {v.rating.toFixed(1)}</span>
+                  )}
                   <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {v.distance}</span>
                 </div>
-                
+
                 <div className="mt-3 flex gap-2">
-                  <a href={`tel:${v.phone.replace(/\s+/g, '')}`} className="flex-1 bg-green-50 text-green-700 py-2 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-1 hover:bg-green-100 transition-colors">
-                    <Phone className="w-3 h-3" /> Call
-                  </a>
+                  {v.phone ? (
+                    <a href={`tel:${v.phone.replace(/\s+/g, '')}`} className="flex-1 bg-green-50 text-green-700 py-2 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-1 hover:bg-green-100 transition-colors">
+                      <Phone className="w-3 h-3" /> Call
+                    </a>
+                  ) : (
+                    <span className="flex-1 bg-gray-50 text-gray-400 py-2 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-1 cursor-not-allowed">
+                      <Phone className="w-3 h-3" /> No Phone Listed
+                    </span>
+                  )}
                   <button 
                     onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${v.position[0]},${v.position[1]}`, '_blank')}
                     className="flex-1 bg-blue-50 text-blue-700 py-2 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-1 hover:bg-blue-100 transition-colors"
