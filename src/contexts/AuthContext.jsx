@@ -75,6 +75,18 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  const sendPasswordReset = async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/reset-password',
+    });
+    if (error) throw error;
+  };
+
+  const updatePassword = async (newPassword) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+  };
+
   const completeOnboarding = () => {
     localStorage.setItem('ah-onboarding', 'true');
     setHasCompletedOnboarding(true);
@@ -92,6 +104,8 @@ export function AuthProvider({ children }) {
       loginWithGoogle,
       loginWithFacebook,
       logout,
+      sendPasswordReset,
+      updatePassword,
       completeOnboarding
     }}>
       {!loading && children}

@@ -103,6 +103,11 @@ export default function FarmCare() {
         </div>
       </div>
 
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-center gap-2 text-amber-800 text-sm">
+        <span>⚠️</span>
+        <span><strong>Soil, irrigation, pest-risk, and forecast data below are simulated for demo purposes.</strong> No soil sensors or satellite feed are connected to your farm yet — do not use these readings for real irrigation, spraying, or fertilizer decisions.</span>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         
         {/* LEFT COLUMN */}

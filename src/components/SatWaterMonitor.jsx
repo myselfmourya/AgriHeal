@@ -68,13 +68,22 @@ export default function SatWaterMonitor({ onSpeak }) {
           </h1>
           <p className="text-emerald-700/70 text-sm">Satellite-backed Farm Water Safety</p>
         </div>
-        <button 
+        <button
           onClick={handleSpeakStatus}
           className="p-3 bg-emerald-100 rounded-full text-emerald-700 hover:bg-emerald-200 transition-colors shadow-sm"
           aria-label="Read Status Aloud"
         >
           <Volume2 className="w-5 h-5" />
         </button>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="mb-6 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-2 text-amber-800 text-sm"
+      >
+        <span>⚠️</span>
+        <span><strong>Satellite water monitoring is simulated for demo purposes.</strong> No real satellite feed is connected yet — do not rely on this data for irrigation or contamination decisions.</span>
       </motion.div>
 
       {/* Main Status Card */}

@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useFarmer } from '../contexts/FarmerContext';
+import { useVani } from '../contexts/VaniContext';
 import { useNavigate } from 'react-router-dom';
 
 const cn = (...classes) => classes.filter(Boolean).join(' ');
@@ -212,13 +213,13 @@ function AnalysisTab() {
 // ─── AI Assistant Chat Tab ──────────────────────────────────────────────────
 function AssistantTab() {
     const { profile } = useFarmer();
+    const { speak, isSpeaking } = useVani();
     const defaultGreeting = { role: "assistant", text: `Hello ${profile?.name || "Farmer"}! 👋 I'm VANI, your personal agriculture AI assistant. I can help you with crop issues, weather advice, pest control, and more. How can I assist your farm today?`, timestamp: new Date() };
     const [messages, setMessages] = useState([defaultGreeting]);
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
     const [voiceMode, setVoiceMode] = useState(false);
-    const [isSpeaking, setIsSpeaking] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
     const [chatHistory, setChatHistory] = useState([]);
     
@@ -285,27 +286,8 @@ function AssistantTab() {
             
             setMessages((p) => [...p, { role: "assistant", text: reply, timestamp: new Date() }]);
             
-            if (voiceMode && window.speechSynthesis) {
-                window.speechSynthesis.cancel();
-                const utterThis = new SpeechSynthesisUtterance(reply.replace(/[*#]/g, ''));
-                utterThis.lang = "en-IN";
-                
-                // Try to find a female voice
-                const voices = window.speechSynthesis.getVoices();
-                const isFemale = (name) => {
-                  const n = name.toLowerCase();
-                  return n.includes('female') || n.includes('woman') || ['samantha', 'zira', 'karen', 'victoria', 'tessa'].some(f => n.includes(f));
-                };
-                let femaleVoice = voices.find(v => v.lang === utterThis.lang && isFemale(v.name));
-                if (!femaleVoice) femaleVoice = voices.find(v => v.lang.startsWith(utterThis.lang.split('-')[0]) && isFemale(v.name));
-                if (!femaleVoice) femaleVoice = voices.find(v => v.lang.startsWith('en') && isFemale(v.name));
-                if (femaleVoice) {
-                  utterThis.voice = femaleVoice;
-                }
-
-                utterThis.onstart = () => setIsSpeaking(true);
-                utterThis.onend = () => setIsSpeaking(false);
-                window.speechSynthesis.speak(utterThis);
+            if (voiceMode) {
+                speak(reply.replace(/[*#]/g, ''));
             }
         } catch (error) {
             console.error("AI Error:", error);
@@ -319,7 +301,6 @@ function AssistantTab() {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) { alert("Voice input not supported in this browser."); return; }
         if (window.speechSynthesis) window.speechSynthesis.cancel();
-        setIsSpeaking(false);
 
         const rec = new SpeechRecognition();
         rec.lang = "en-IN";
@@ -338,10 +319,7 @@ function AssistantTab() {
 
     const stopVoice = () => {
         setIsRecording(false);
-        if (window.speechSynthesis) {
-            window.speechSynthesis.cancel();
-            setIsSpeaking(false);
-        }
+        window.speechSynthesis?.cancel();
     };
 
     const SUGGESTIONS = ["What's the weather like?", "How to treat yellow leaves?", "Best time to apply Urea?"];

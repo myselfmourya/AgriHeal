@@ -1,44 +1,5 @@
 import { supabase } from '../lib/supabase';
 
-const generateFallbackVendors = (lat, lon) => {
-  const offset1 = (Math.random() - 0.5) * 0.04;
-  const offset2 = (Math.random() - 0.5) * 0.04;
-  const offset3 = (Math.random() - 0.5) * 0.04;
-
-  return [
-    {
-      id: 1,
-      name: "Kisan Seva Kendra",
-      category: "Fertilizers & Seeds",
-      rating: 4.5,
-      position: lat && lon ? [lat + offset1, lon + offset1] : [17.3850, 78.4867],
-      open: true,
-      phone: "+91 98765 43210",
-      icon: "🏪"
-    },
-    {
-      id: 2,
-      name: "AgriTech Equipment Sales",
-      category: "Farming Machinery",
-      rating: 4.8,
-      position: lat && lon ? [lat - offset2, lon + offset2] : [17.4050, 78.4967],
-      open: true,
-      phone: "+91 98765 43211",
-      icon: "🚜"
-    },
-    {
-      id: 3,
-      name: "Green Earth Pesticides",
-      category: "Agrochemicals",
-      rating: 4.2,
-      position: lat && lon ? [lat + offset3, lon - offset3] : [17.3950, 78.4767],
-      open: false,
-      phone: "+91 98765 43212",
-      icon: "🧪"
-    }
-  ];
-};
-
 function calculateDistance(lat1, lon1, lat2, lon2) {
   if (!lat1 || !lon1 || !lat2 || !lon2) return "Unknown";
   const R = 6371; // Earth radius in km

@@ -1,16 +1,84 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Key, Smartphone, Mail, AlertTriangle, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { useFarmer } from '../../contexts/FarmerContext';
+import { supabase } from '../../lib/supabase';
+import { dataManagementService } from '../../services/dataManagementService';
 
 export default function AccountSettings() {
+  const { user, logout, sendPasswordReset } = useAuth();
+  const { profile } = useFarmer();
+  const [busy, setBusy] = useState(null); // 'google' | 'facebook' | 'password' | 'delete' | null
+  const [message, setMessage] = useState(null);
+
+  const identities = user?.identities || [];
+  const isLinked = (provider) => identities.some(i => i.provider === provider);
+
+  const linkProvider = async (provider) => {
+    setBusy(provider);
+    setMessage(null);
+    try {
+      const { error } = await supabase.auth.linkIdentity({
+        provider,
+        options: { redirectTo: window.location.origin + '/settings/account' },
+      });
+      if (error) throw error;
+      // linkIdentity redirects the browser on success; nothing else to do here.
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message || `Could not connect ${provider}.` });
+      setBusy(null);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!user?.email) {
+      setMessage({ type: 'error', text: 'No email on file to send a reset link to.' });
+      return;
+    }
+    setBusy('password');
+    setMessage(null);
+    try {
+      await sendPasswordReset(user.email);
+      setMessage({ type: 'success', text: `Password reset link sent to ${user.email}.` });
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message || 'Failed to send reset link.' });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm(
+      'This permanently deletes your account and all farm data. This cannot be undone. Continue?'
+    );
+    if (!confirmed) return;
+    setBusy('delete');
+    setMessage(null);
+    const ok = await dataManagementService.deleteAccount();
+    if (ok) {
+      await logout();
+      window.location.href = '/login';
+    } else {
+      setMessage({ type: 'error', text: 'Failed to delete account. Please try again or contact support.' });
+      setBusy(null);
+    }
+  };
+
   return (
     <div className="animate-in fade-in slide-in-from-right-4 duration-300 w-full pb-10">
-      
+
+      {message && (
+        <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-medium ${message.type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+          {message.text}
+        </div>
+      )}
+
       {/* Linked Accounts */}
       <div className="mb-8">
         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-4 mb-3">Linked Accounts</h3>
         <div className="bg-slate-50 rounded-3xl overflow-hidden flex flex-col gap-0.5">
-          
-          <div className="p-4 flex items-center justify-between bg-slate-50 hover:bg-gray-100 transition-colors cursor-pointer">
+
+          <div className="p-4 flex items-center justify-between bg-slate-50 hover:bg-gray-100 transition-colors">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shrink-0 shadow-sm">
                 <svg className="w-5 h-5 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
@@ -21,16 +89,24 @@ export default function AccountSettings() {
                 </svg>
               </div>
               <div className="text-left">
-                <h3 className="font-bold text-gray-900 text-sm">
-                  Google
-                </h3>
-                <p className="text-xs text-gray-500">Connected</p>
+                <h3 className="font-bold text-gray-900 text-sm">Google</h3>
+                <p className="text-xs text-gray-500">{isLinked('google') ? 'Connected' : 'Not connected'}</p>
               </div>
             </div>
-            <CheckCircle2 className="w-5 h-5 text-green-500" />
+            {isLinked('google') ? (
+              <CheckCircle2 className="w-5 h-5 text-green-500" />
+            ) : (
+              <button
+                onClick={() => linkProvider('google')}
+                disabled={busy === 'google'}
+                className="text-xs font-bold text-blue-600 bg-white px-3 py-1.5 rounded-full hover:bg-blue-50 transition-colors shadow-sm disabled:opacity-50"
+              >
+                {busy === 'google' ? 'Connecting…' : 'Connect'}
+              </button>
+            )}
           </div>
 
-          <div className="p-4 flex items-center justify-between bg-slate-50 hover:bg-gray-100 transition-colors cursor-pointer">
+          <div className="p-4 flex items-center justify-between bg-slate-50 hover:bg-gray-100 transition-colors">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shrink-0 shadow-sm">
                 <svg className="w-5 h-5 text-blue-700" viewBox="0 0 24 24" fill="currentColor">
@@ -39,12 +115,20 @@ export default function AccountSettings() {
               </div>
               <div className="text-left">
                 <h3 className="font-bold text-gray-900 text-sm">Facebook</h3>
-                <p className="text-xs text-gray-500">Not connected</p>
+                <p className="text-xs text-gray-500">{isLinked('facebook') ? 'Connected' : 'Not connected'}</p>
               </div>
             </div>
-            <button className="text-xs font-bold text-blue-600 bg-white px-3 py-1.5 rounded-full hover:bg-blue-50 transition-colors shadow-sm">
-              Connect
-            </button>
+            {isLinked('facebook') ? (
+              <CheckCircle2 className="w-5 h-5 text-green-500" />
+            ) : (
+              <button
+                onClick={() => linkProvider('facebook')}
+                disabled={busy === 'facebook'}
+                className="text-xs font-bold text-blue-600 bg-white px-3 py-1.5 rounded-full hover:bg-blue-50 transition-colors shadow-sm disabled:opacity-50"
+              >
+                {busy === 'facebook' ? 'Connecting…' : 'Connect'}
+              </button>
+            )}
           </div>
 
         </div>
@@ -54,35 +138,37 @@ export default function AccountSettings() {
       <div className="mb-8">
         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-4 mb-3">Account Details</h3>
         <div className="bg-slate-50 rounded-3xl overflow-hidden flex flex-col gap-0.5">
-          
-          <button className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-gray-100 transition-colors">
+
+          <div className="w-full flex items-center justify-between p-4 bg-slate-50">
             <div className="flex items-center gap-4">
               <Smartphone className="w-5 h-5 text-gray-500" />
               <div className="text-left">
                 <h4 className="font-bold text-gray-900 text-sm">Phone Number</h4>
-                <p className="text-xs text-gray-500">+91 98765 43210</p>
+                <p className="text-xs text-gray-500">{profile?.phone || 'Not set'}</p>
               </div>
             </div>
-            <ChevronRight className="w-4 h-4 text-slate-400" />
-          </button>
+          </div>
 
-          <button className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-gray-100 transition-colors">
+          <div className="w-full flex items-center justify-between p-4 bg-slate-50">
             <div className="flex items-center gap-4">
               <Mail className="w-5 h-5 text-gray-500" />
               <div className="text-left">
                 <h4 className="font-bold text-gray-900 text-sm">Email Address</h4>
-                <p className="text-xs text-gray-500">Add email</p>
+                <p className="text-xs text-gray-500">{user?.email || 'Not set'}</p>
               </div>
             </div>
-            <ChevronRight className="w-4 h-4 text-slate-400" />
-          </button>
-          
-          <button className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-gray-100 transition-colors">
+          </div>
+
+          <button
+            onClick={handlePasswordReset}
+            disabled={busy === 'password'}
+            className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-gray-100 transition-colors disabled:opacity-50"
+          >
             <div className="flex items-center gap-4">
               <Key className="w-5 h-5 text-gray-500" />
               <div className="text-left">
                 <h4 className="font-bold text-gray-900 text-sm">Change Password</h4>
-                <p className="text-xs text-gray-500">Last changed 3 months ago</p>
+                <p className="text-xs text-gray-500">{busy === 'password' ? 'Sending reset link…' : 'Send a reset link to your email'}</p>
               </div>
             </div>
             <ChevronRight className="w-4 h-4 text-slate-400" />
@@ -95,13 +181,17 @@ export default function AccountSettings() {
       <div className="mb-8">
         <h3 className="text-xs font-bold text-red-400 uppercase tracking-wider px-4 mb-3">Danger Zone</h3>
         <div className="bg-red-50/50 rounded-3xl overflow-hidden flex flex-col gap-0.5 border border-red-100">
-          
-          <button className="w-full flex items-center justify-between p-4 bg-white/50 hover:bg-red-50 transition-colors">
+
+          <button
+            onClick={handleDeleteAccount}
+            disabled={busy === 'delete'}
+            className="w-full flex items-center justify-between p-4 bg-white/50 hover:bg-red-50 transition-colors disabled:opacity-50"
+          >
             <div className="flex items-center gap-4">
               <AlertTriangle className="w-5 h-5 text-red-500" />
               <div className="text-left">
                 <h4 className="font-bold text-red-700 text-sm">Delete Account</h4>
-                <p className="text-xs text-red-500/80">Permanently remove all data</p>
+                <p className="text-xs text-red-500/80">{busy === 'delete' ? 'Deleting…' : 'Permanently remove all data'}</p>
               </div>
             </div>
             <ChevronRight className="w-4 h-4 text-red-300" />

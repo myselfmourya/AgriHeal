@@ -5,9 +5,13 @@
  * The browser never sees any key — it only sends authenticated requests to this function.
  *
  * Supported providers (in priority fallback order):
- *   chat/translate/summarize : gemini → mistral → claude
+ *   chat/translate/summarize : groq → gemini → mistral → claude
  *   image                    : gemini → claude
- *   structured/document      : claude → gemini → mistral
+ *   structured/document      : groq → claude → gemini → mistral
+ *
+ * Groq leads the text-only chains — it's fast and its free tier is generous,
+ * so routing ordinary chat/structured/document traffic there first keeps the
+ * Gemini/Mistral/Claude quotas free for image analysis and fallback.
  *
  * Request body:
  *   { intent, prompt, systemInstruction?, base64Image?, mimeType? }
@@ -45,6 +49,7 @@ const MODELS = {
   gemini: "gemini-2.0-flash",
   claude: "claude-3-haiku-20240307",
   mistral: "mistral-small-latest",
+  groq: "openai/gpt-oss-120b",
 };
 
 // ── Provider implementations ───────────────────────────────────────────────
@@ -67,7 +72,7 @@ async function callGemini(
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts }] }),
+    body: JSON.stringify({ contents: [{ parts }], generationConfig: { maxOutputTokens: 4096 } }),
   });
 
   const data = await res.json();
@@ -92,7 +97,7 @@ async function callClaude(
 
   const payload: Record<string, unknown> = {
     model: MODELS.claude,
-    max_tokens: 2048,
+    max_tokens: 4096,
     messages: [{ role: "user", content }],
   };
   if (systemInstruction) payload.system = systemInstruction;
@@ -112,6 +117,28 @@ async function callClaude(
   return data.content?.[0]?.text ?? "";
 }
 
+async function callGroq(
+  prompt: string,
+  systemInstruction: string | null
+): Promise<string> {
+  const key = Deno.env.get("GROQ_API_KEY");
+  if (!key) throw new Error("GROQ_API_KEY not configured");
+
+  const messages: unknown[] = [];
+  if (systemInstruction) messages.push({ role: "system", content: systemInstruction });
+  messages.push({ role: "user", content: prompt });
+
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+    body: JSON.stringify({ model: MODELS.groq, messages, max_tokens: 4096 }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(`Groq error ${res.status}: ${JSON.stringify(data)}`);
+  return data.choices?.[0]?.message?.content ?? "";
+}
+
 async function callMistral(
   prompt: string,
   systemInstruction: string | null
@@ -126,7 +153,7 @@ async function callMistral(
   const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-    body: JSON.stringify({ model: MODELS.mistral, messages }),
+    body: JSON.stringify({ model: MODELS.mistral, messages, max_tokens: 4096 }),
   });
 
   const data = await res.json();
@@ -138,10 +165,10 @@ async function callMistral(
 type Intent = "chat" | "image" | "structured" | "document";
 
 const CHAINS: Record<Intent, string[]> = {
-  chat:       ["gemini", "mistral", "claude"],
+  chat:       ["groq", "gemini", "mistral", "claude"],
   image:      ["gemini", "claude"],
-  structured: ["claude", "gemini", "mistral"],
-  document:   ["claude", "gemini", "mistral"],
+  structured: ["groq", "claude", "gemini", "mistral"],
+  document:   ["groq", "claude", "gemini", "mistral"],
 };
 
 async function executeWithFallback(
@@ -157,6 +184,7 @@ async function executeWithFallback(
   for (const provider of chain) {
     try {
       console.log(`[ai-proxy] intent=${intent} trying=${provider}`);
+      if (provider === "groq") return await callGroq(prompt, systemInstruction);
       if (provider === "gemini") return await callGemini(prompt, systemInstruction, base64Image, mimeType);
       if (provider === "claude") return await callClaude(prompt, systemInstruction, base64Image, mimeType);
       if (provider === "mistral") return await callMistral(prompt, systemInstruction);

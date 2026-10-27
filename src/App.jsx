@@ -58,6 +58,7 @@ const Login            = lazy(() => import('./pages/auth/Login'))
 const Register         = lazy(() => import('./pages/auth/Register'))
 const VerifyOTP        = lazy(() => import('./pages/auth/VerifyOTP'))
 const ForgotPassword   = lazy(() => import('./pages/auth/ForgotPassword'))
+const ResetPassword    = lazy(() => import('./pages/auth/ResetPassword'))
 const ProfileSetup     = lazy(() => import('./pages/auth/ProfileSetup'))
 
 // ── Skeleton fallback ──────────────────────────────────────────────────────
@@ -113,6 +114,7 @@ export default function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/verify" element={<VerifyOTP />} />
               <Route path="/forgot" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/setup" element={<ProfileSetup />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
@@ -158,6 +160,7 @@ export default function App() {
             <Route path="/community"    element={<CommunityPage />} />
             <Route path="/assistant"    element={<AIAssistant />} />
             <Route path="/help"         element={<HelpSupportPage />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="*"             element={<Navigate to="/home" replace />} />
             </Routes>
           </Layout>
