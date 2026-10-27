@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   CloudRain, Sun, Wind, Droplets,
-  MapPin, Activity, Beaker, ShieldAlert,
-  Droplet, Calendar, Zap, Clock, Wheat,
+  MapPin, Beaker, ShieldAlert,
+  Droplet, Calendar, Clock, Wheat,
   Bug, Flame, Snowflake, ActivitySquare, CheckCircle,
      Sunrise, Sunset, Gauge, Calendar as CalendarIcon,
   Leaf, Loader2, Satellite
@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { useFarmer } from '../contexts/FarmerContext';
 import { fetchVegetationHealth } from '../services/satelliteService';
 import { fetchFarmWeather } from '../services/openMeteoService';
+import { getIrrigationRecommendation, getHeatFrostRisk, getPestDiseaseRisk } from '../services/farmRiskRules';
 
 const summarizeWeather = (w) => {
   const notes = [];
@@ -87,40 +88,42 @@ export default function FarmCare() {
     }
   }, []);
 
-  const soil = {
-    score: 85,
+  // Soil chemistry (pH, organic carbon, N/P/K, EC) has no free real data
+  // source — real values need a physical soil test. Kept simulated and
+  // disclosed as such. Soil moisture/temp below are real (Open-Meteo).
+  const soilChemistry = {
     ph: { value: 6.8, status: 'Optimal', msg: 'Slightly Acidic - Perfect for most crops.' },
-    moisture: { value: '42%', status: 'Low', msg: 'Approaching wilting point. Irrigation recommended soon.' },
     organicCarbon: { value: '0.75%', status: 'Medium', msg: 'Adequate, but adding compost post-harvest is advised.' },
     nitrogen: { value: '290 kg/ha', status: 'Adequate', msg: 'Sufficient for current vegetative stage.' },
     phosphorus: { value: '22 kg/ha', status: 'Adequate', msg: 'Good root development support.' },
     potassium: { value: '180 kg/ha', status: 'Low', msg: 'Apply Potash to improve disease resistance.' },
-    ec: { value: '1.2 dS/m', status: 'Optimal', msg: 'Salinity levels are safe.' },
-    temp: { value: '24°C', status: 'Optimal', msg: 'Good for nutrient uptake.' }
   };
 
-  const water = {
-    soilMoisture: 42,
-    status: 'Irrigation Needed',
-    nextSchedule: 'Today, Evening',
-    method: 'Drip Irrigation',
-    source: 'Borewell',
-    usageWeek: '12,450 L',
-    aiReasoning: "Soil moisture has dropped below optimal levels. Since rain is expected later, a light supplementary drip irrigation is recommended this evening rather than a full flooding."
-  };
+  const irrigation = weather ? getIrrigationRecommendation({
+    soilMoisturePercent: weather.soilMoisturePercent,
+    rainNext48hMm: weather.rainNext48hMm,
+  }) : null;
 
-  const impact = [
-    { risk: 'Disease Risk', level: 'High', icon: Bug, color: 'text-red-500', bg: 'bg-red-50', msg: 'High humidity favors fungal growth like Leaf Blast.' },
-    { risk: 'Pest Activity', level: 'Medium', icon: ShieldAlert, color: 'text-orange-500', bg: 'bg-orange-50', msg: 'Stem borers observed in neighboring regions.' },
-    { risk: 'Heat Stress', level: 'Low', icon: Flame, color: 'text-green-600', bg: 'bg-green-50', msg: 'Temperatures are well within safe limits.' },
-    { risk: 'Frost Damage', level: 'Low', icon: Snowflake, color: 'text-green-600', bg: 'bg-green-50', msg: 'No frost risk detected.' },
-  ];
+  const today = forecast[0];
+  const heatFrost = today ? getHeatFrostRisk({ tempMaxC: today.high, tempMinC: today.low }) : null;
+  const pestDisease = weather ? getPestDiseaseRisk({ humidity: weather.humidity, tempC: weather.temp }) : null;
 
-  const recommendations = [
-    { title: 'Irrigation', action: 'Light Drip Irrigation', time: 'Today 5:00 PM', reason: 'Maintain baseline moisture before expected night rains.' },
-    { title: 'Fertilizer', action: 'Delay Application', time: 'Postpone 48h', reason: 'Upcoming rain will wash away applied fertilizers. Wait until soil dries.' },
-    { title: 'Pesticide', action: 'Do Not Spray', time: 'Hold', reason: 'High wind speed (18km/h) will cause spray drift, and rain will wash it off.' },
-  ];
+  const impact = (heatFrost && pestDisease) ? [
+    { risk: 'Disease Risk', level: pestDisease.diseaseRisk.level, icon: Bug, color: pestDisease.diseaseRisk.level === 'High' ? 'text-red-500' : pestDisease.diseaseRisk.level === 'Medium' ? 'text-orange-500' : 'text-green-600', bg: pestDisease.diseaseRisk.level === 'High' ? 'bg-red-50' : pestDisease.diseaseRisk.level === 'Medium' ? 'bg-orange-50' : 'bg-green-50', msg: pestDisease.diseaseRisk.msg },
+    { risk: 'Pest Activity', level: pestDisease.pestActivity.level, icon: ShieldAlert, color: pestDisease.pestActivity.level === 'High' ? 'text-red-500' : pestDisease.pestActivity.level === 'Medium' ? 'text-orange-500' : 'text-green-600', bg: pestDisease.pestActivity.level === 'High' ? 'bg-red-50' : pestDisease.pestActivity.level === 'Medium' ? 'bg-orange-50' : 'bg-green-50', msg: pestDisease.pestActivity.msg },
+    { risk: 'Heat Stress', level: heatFrost.heatStress.level, icon: Flame, color: heatFrost.heatStress.level === 'High' ? 'text-red-500' : heatFrost.heatStress.level === 'Medium' ? 'text-orange-500' : 'text-green-600', bg: heatFrost.heatStress.level === 'High' ? 'bg-red-50' : heatFrost.heatStress.level === 'Medium' ? 'bg-orange-50' : 'bg-green-50', msg: heatFrost.heatStress.msg },
+    { risk: 'Frost Damage', level: heatFrost.frostDamage.level, icon: Snowflake, color: heatFrost.frostDamage.level === 'High' ? 'text-red-500' : heatFrost.frostDamage.level === 'Medium' ? 'text-orange-500' : 'text-green-600', bg: heatFrost.frostDamage.level === 'High' ? 'bg-red-50' : heatFrost.frostDamage.level === 'Medium' ? 'bg-orange-50' : 'bg-green-50', msg: heatFrost.frostDamage.msg },
+  ] : [];
+
+  const recommendations = weather ? [
+    { title: 'Irrigation', action: irrigation.status, time: irrigation.needed ? 'Today' : '—', reason: irrigation.reasoning },
+    weather.rainNext48hMm >= 5
+      ? { title: 'Fertilizer', action: 'Delay Application', time: 'Postpone', reason: `${weather.rainNext48hMm}mm of rain expected in the next 48h will wash away applied fertilizer — wait until it passes.` }
+      : { title: 'Fertilizer', action: 'Safe to Apply', time: 'Anytime', reason: 'No significant rain expected in the next 48h.' },
+    (weather.wind >= 20 || weather.rainProb >= 50)
+      ? { title: 'Pesticide', action: 'Do Not Spray', time: 'Hold', reason: weather.wind >= 20 ? `High wind speed (${weather.wind} km/h) will cause spray drift.` : `${weather.rainProb}% rain chance today will wash off any spray.` }
+      : { title: 'Pesticide', action: 'Safe to Spray', time: 'Anytime', reason: 'Low wind and low rain chance today.' },
+  ] : [];
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-8 animate-fade-in">
@@ -137,7 +140,7 @@ export default function FarmCare() {
 
       <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-center gap-2 text-amber-800 text-sm">
         <span>⚠️</span>
-        <span><strong>Soil, irrigation, and pest-risk data below are simulated for demo purposes.</strong> No soil sensors are connected to your farm yet — do not use these readings for real irrigation, spraying, or fertilizer decisions. Weather, the 7-day forecast, and Vegetation Health below are real, live data.</span>
+        <span><strong>Soil chemistry (pH, organic carbon, N/P/K) is simulated — no soil test is connected.</strong> Weather, the 7-day forecast, Vegetation Health, soil moisture, and irrigation timing are real, live data. Disease/pest risk is a general weather-based estimate, not species-specific pest monitoring — don't use any of this for final spraying or fertilizer decisions without checking your field directly.</span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
@@ -248,11 +251,17 @@ export default function FarmCare() {
             )}
           </section>
 
-          {/* AI Crop Impact Analysis */}
+          {/* Crop Impact Analysis */}
           <section className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-            <h2 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
-              <ActivitySquare className="w-5 h-5 text-purple-600" /> AI Crop Impact Analysis
+            <h2 className="text-lg font-black text-slate-800 mb-1 flex items-center gap-2">
+              <ActivitySquare className="w-5 h-5 text-purple-600" /> Crop Impact Analysis
             </h2>
+            <p className="text-[10px] font-medium text-slate-400 mb-6">Heat/frost are direct forecast readings. Disease/pest are a general weather-based estimate, not species-specific monitoring.</p>
+            {impact.length === 0 && (
+              <div className="flex items-center gap-2 text-slate-400 text-xs font-bold py-4">
+                <Loader2 className="w-4 h-4 animate-spin" /> Waiting for weather data...
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {impact.map((item, idx) => (
                 <div key={idx} className={`rounded-2xl p-4 border ${item.bg.replace('bg-', 'border-').replace('50', '200')} ${item.bg}`}>
@@ -276,51 +285,60 @@ export default function FarmCare() {
             <section className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
               <h2 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
                 <Droplets className="w-5 h-5 text-blue-500" /> Smart Water Management
+                <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-green-100 text-green-700">Live</span>
               </h2>
+
+              {weatherLoading && (
+                <div className="flex items-center gap-2 text-slate-400 text-xs font-bold py-4">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Reading soil moisture...
+                </div>
+              )}
+
+              {!weatherLoading && weather && weather.soilMoisturePercent == null && (
+                <p className="text-xs font-medium text-slate-500 py-2">Soil moisture data unavailable for this location.</p>
+              )}
+
+              {!weatherLoading && weather && weather.soilMoisturePercent != null && (
               <div className="flex flex-col md:flex-row gap-6">
                 <div className="flex-1 space-y-4">
                   <div>
                     <div className="flex justify-between items-end mb-2">
                       <p className="text-xs font-bold text-slate-500 uppercase">Soil Moisture</p>
-                      <p className="text-2xl font-black text-blue-600">{water.soilMoisture}%</p>
+                      <p className="text-2xl font-black text-blue-600">{weather.soilMoisturePercent}%</p>
                     </div>
-                    <div className="h-3 w-full bg-gray-100 rounded-full overflow-hidden flex">
-                      <div className="h-full bg-orange-400" style={{width: '30%'}}></div>
-                      <div className="h-full bg-green-500" style={{width: '50%'}}></div>
-                      <div className="h-full bg-blue-500" style={{width: '20%'}}></div>
+                    <div className="h-3 w-full bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-500" style={{width: `${weather.soilMoisturePercent}%`}}></div>
                     </div>
                     <div className="flex justify-between mt-1 text-[9px] font-bold text-slate-400 uppercase">
                       <span>Dry</span>
                       <span>Optimal</span>
                       <span>Saturated</span>
                     </div>
+                    <p className="text-[10px] font-medium text-slate-400 mt-1">Raw reading: {weather.soilMoistureRaw?.toFixed(3)} m³/m³ volumetric water content (% is an estimate against a generic field-capacity reference — actual capacity varies by soil type)</p>
                   </div>
-                  
+
                   <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
-                    <p className="text-xs font-bold text-blue-800 mb-1">Vani's Irrigation Advice:</p>
-                    <p className="text-sm font-medium text-blue-900 leading-relaxed">{water.aiReasoning}</p>
+                    <p className="text-xs font-bold text-blue-800 mb-1">Irrigation Advice:</p>
+                    <p className="text-sm font-medium text-blue-900 leading-relaxed">{irrigation.reasoning}</p>
                   </div>
                 </div>
 
                 <div className="flex-1 grid grid-cols-2 gap-3">
                   <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Next Schedule</p>
-                    <p className="text-sm font-black text-slate-800 flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-blue-500"/> {water.nextSchedule}</p>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Status</p>
+                    <p className="text-sm font-black text-slate-800 flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-blue-500"/> {irrigation.status}</p>
                   </div>
                   <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Method</p>
-                    <p className="text-sm font-black text-slate-800 flex items-center gap-1"><Droplet className="w-3.5 h-3.5 text-blue-500"/> {water.method}</p>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Soil Temp</p>
+                    <p className="text-sm font-black text-slate-800 flex items-center gap-1"><Droplet className="w-3.5 h-3.5 text-blue-500"/> {weather.soilTemp != null ? `${weather.soilTemp}°C` : 'N/A'}</p>
                   </div>
-                  <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Water Source</p>
-                    <p className="text-sm font-black text-slate-800 flex items-center gap-1"><Zap className="w-3.5 h-3.5 text-blue-500"/> {water.source}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Usage (7 Days)</p>
-                    <p className="text-sm font-black text-slate-800 flex items-center gap-1"><Activity className="w-3.5 h-3.5 text-blue-500"/> {water.usageWeek}</p>
+                  <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 col-span-2">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Rain (Next 48h)</p>
+                    <p className="text-sm font-black text-slate-800 flex items-center gap-1"><CloudRain className="w-3.5 h-3.5 text-blue-500"/> {weather.rainNext48hMm}mm</p>
                   </div>
                 </div>
               </div>
+              )}
             </section>
           </div>
 
@@ -340,6 +358,11 @@ export default function FarmCare() {
               <Calendar className="w-5 h-5" /> Today's Action Plan
             </h2>
             <div className="space-y-4 relative z-10">
+              {recommendations.length === 0 && (
+                <div className="flex items-center gap-2 text-green-100 text-xs font-bold py-4">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Waiting for weather data...
+                </div>
+              )}
               {recommendations.map((rec, idx) => (
                 <div key={idx} className="bg-white/10 rounded-2xl p-4 backdrop-blur-sm border border-white/20">
                   <div className="flex flex-col items-start mb-3 gap-2">
@@ -403,25 +426,23 @@ export default function FarmCare() {
             })()}
           </section>
 
-          {/* Soil Health Monitor */}
+          {/* Soil Chemistry (still simulated — no soil test connected) */}
           <section className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-            <div className="flex justify-between items-start mb-6">
+            <div className="flex justify-between items-start mb-1">
               <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
-                <Beaker className="w-5 h-5 text-amber-600" /> Soil Health
+                <Beaker className="w-5 h-5 text-amber-600" /> Soil Chemistry
               </h2>
-              <div className="text-right">
-                <p className="text-2xl font-black text-green-600">{soil.score}</p>
-                <p className="text-[10px] font-bold text-slate-400 uppercase">Health Score</p>
-              </div>
+              <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-amber-100 text-amber-700">Simulated</span>
             </div>
+            <p className="text-[10px] font-medium text-slate-400 mb-5">pH, organic carbon, and N/P/K need a physical soil test — no free real-time source exists. Soil moisture is real (see Water Management above).</p>
 
             <div className="space-y-3">
               {[
-                { label: 'pH Level', data: soil.ph },
-                { label: 'Organic Carbon', data: soil.organicCarbon },
-                { label: 'Nitrogen (N)', data: soil.nitrogen },
-                { label: 'Phosphorus (P)', data: soil.phosphorus },
-                { label: 'Potassium (K)', data: soil.potassium },
+                { label: 'pH Level', data: soilChemistry.ph },
+                { label: 'Organic Carbon', data: soilChemistry.organicCarbon },
+                { label: 'Nitrogen (N)', data: soilChemistry.nitrogen },
+                { label: 'Phosphorus (P)', data: soilChemistry.phosphorus },
+                { label: 'Potassium (K)', data: soilChemistry.potassium },
               ].map((item, idx) => (
                 <div key={idx} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
                   <div className="flex justify-between items-center mb-1">

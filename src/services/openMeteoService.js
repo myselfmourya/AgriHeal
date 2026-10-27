@@ -63,8 +63,8 @@ export const fetchFarmWeather = async (lat, lon) => {
   const url = new URL(BASE_URL);
   url.searchParams.set('latitude', lat);
   url.searchParams.set('longitude', lon);
-  url.searchParams.set('current', 'temperature_2m,relative_humidity_2m,wind_speed_10m,pressure_msl,uv_index,weather_code');
-  url.searchParams.set('daily', 'temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code,sunrise,sunset');
+  url.searchParams.set('current', 'temperature_2m,relative_humidity_2m,wind_speed_10m,pressure_msl,uv_index,weather_code,soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,soil_temperature_0cm');
+  url.searchParams.set('daily', 'temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,weather_code,sunrise,sunset');
   url.searchParams.set('timezone', 'auto');
   url.searchParams.set('wind_speed_unit', 'kmh');
   url.searchParams.set('forecast_days', '7');
@@ -77,6 +77,17 @@ export const fetchFarmWeather = async (lat, lon) => {
   const daily = data.daily;
   const todayCondition = describeWeatherCode(current.weather_code);
 
+  // Average the surface + root-zone layers (0-9cm) into one figure for display —
+  // this is what's relevant for irrigation decisions on most field crops.
+  const soilLayers = [current.soil_moisture_0_to_1cm, current.soil_moisture_1_to_3cm, current.soil_moisture_3_to_9cm]
+    .filter((v) => typeof v === 'number');
+  const soilMoistureVwc = soilLayers.length
+    ? soilLayers.reduce((a, b) => a + b, 0) / soilLayers.length
+    : null;
+
+  // Significant rain expected in the next 48h? Used for irrigation timing.
+  const rainNext48hMm = (daily.precipitation_sum?.[0] ?? 0) + (daily.precipitation_sum?.[1] ?? 0);
+
   return {
     temp: Math.round(current.temperature_2m),
     humidity: Math.round(current.relative_humidity_2m),
@@ -85,8 +96,17 @@ export const fetchFarmWeather = async (lat, lon) => {
     uv: Math.round(current.uv_index * 10) / 10,
     condition: todayCondition.label,
     rainProb: daily.precipitation_probability_max?.[0] ?? 0,
+    rainNext48hMm: Math.round(rainNext48hMm * 10) / 10,
     sunrise: formatTime(daily.sunrise?.[0]),
     sunset: formatTime(daily.sunset?.[0]),
+    // Volumetric water content (m³ water / m³ soil) expressed as a 0-100 "wetness" %.
+    // Field capacity varies by soil texture (~0.30 for sandy loam up to ~0.45+ for
+    // clay); 0.45 is used as a conservative upper reference so this doesn't clamp
+    // to 100% for normal clay-rich soils. soilMoistureRaw (the actual m³/m³ value)
+    // is also exposed so the UI can show the real reading, not just this estimate.
+    soilMoisturePercent: soilMoistureVwc != null ? Math.round(Math.min(soilMoistureVwc / 0.45, 1) * 100) : null,
+    soilMoistureRaw: soilMoistureVwc,
+    soilTemp: current.soil_temperature_0cm != null ? Math.round(current.soil_temperature_0cm) : null,
     forecast: daily.time.map((date, idx) => {
       const code = describeWeatherCode(daily.weather_code[idx]);
       return {
