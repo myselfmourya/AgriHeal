@@ -3,7 +3,7 @@ import {
   TrendingUp, TrendingDown, MapPin, Star, Package, 
   Wallet, PieChart as  ShieldCheck, FileText, ChevronRight,
   Info, Leaf, CircleDollarSign, LineChart as LineChartIcon,
-  X, Building2, Search, Mic, MessageSquare, Plus, Send, Map, CloudRain
+  X, Building2, Search, Mic, MessageSquare, Plus, Send, Map as MapIcon, CloudRain
 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
@@ -640,7 +640,7 @@ export default function HealMarketplace({ onSpeak }) {
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
               <div className="mb-6">
                 <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                  <Map className="w-4 h-4 text-blue-600" /> Real Local Directories (Near {cityOnly})
+                  <MapIcon className="w-4 h-4 text-blue-600" /> Real Local Directories (Near {cityOnly})
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">Click a category to instantly find real verified locations on Google Maps near your exact GPS coordinates.</p>
               </div>
