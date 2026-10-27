@@ -33,6 +33,3 @@
 - **Styling:** Tailwind CSS is the standard. Use exact utility classes.
 - **Linting:** Keep warnings to a minimum. Do not leave unused imports in the codebase.
 - **Vani AI:** Use the global `VaniWidget` context. Do not create standalone assistant pages.
-
-## Phase Strategy
-The project is built in controlled phases. See `task.md` and `product_foundation.md` for phase gates, definitions, and architecture rules.

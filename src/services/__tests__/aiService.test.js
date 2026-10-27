@@ -5,7 +5,7 @@ import { generateVaniResponse, buildFarmContext } from '../aiService';
 vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn(() => ({
     auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'test-user' } }, error: null }) },
-    functions: { invoke: vi.fn().mockResolvedValue({ data: { text: 'mocked AI response' }, error: null }) },
+    functions: { invoke: vi.fn().mockResolvedValue({ data: { text: JSON.stringify({ speech: 'mocked AI response', action: 'CHAT', target: null }) }, error: null }) },
     from: vi.fn(() => ({ insert: vi.fn().mockResolvedValue({ error: null }) })),
   })),
 }));

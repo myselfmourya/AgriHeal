@@ -107,6 +107,7 @@ export default function HealMarketplace({ onSpeak }) {
   const [chatHistory, setChatHistory] = useState([
     { sender: 'ai', text: 'Namaskara! Ask me anything about current crop prices, nearby markets, or buyer contacts.' }
   ]);
+  const [isVaniTyping, setIsVaniTyping] = useState(false);
 
   // Finance State
   const [expenses, setExpenses] = useState([
@@ -283,14 +284,26 @@ export default function HealMarketplace({ onSpeak }) {
     toggleMarketFavorite(cropName);
   };
 
-  const handleSendMessage = () => {
-    if (!chatMessage.trim()) return;
-    setChatHistory([...chatHistory, { sender: 'user', text: chatMessage }]);
+  const handleSendMessage = async () => {
+    const query = chatMessage.trim();
+    if (!query) return;
+    const nextHistory = [...chatHistory, { sender: 'user', text: query }];
+    setChatHistory(nextHistory);
     setChatMessage('');
-    
-    setTimeout(() => {
-      setChatHistory(prev => [...prev, { sender: 'ai', text: `I'm analyzing the latest market data for ${cityOnly}. Prices are currently stable, but always keep an eye on weather reports!` }]);
-    }, 1000);
+    setIsVaniTyping(true);
+
+    try {
+      const { generateText } = await import('../services/aiProvider');
+      const historyText = nextHistory.slice(-5).map(m => `${m.sender === 'ai' ? 'assistant' : 'user'}: ${m.text}`).join('\n');
+      const prompt = `You are Vani, a market and finance expert for Indian farmers. The farmer is near ${cityOnly}.\nRecent context:\n${historyText}\n\nAnswer the farmer's latest question about crop prices, nearby markets, or buyer contacts. Keep it concise and practical.`;
+      const reply = await generateText(prompt);
+      setChatHistory(prev => [...prev, { sender: 'ai', text: reply }]);
+    } catch (error) {
+      console.error('Vani chat error:', error);
+      setChatHistory(prev => [...prev, { sender: 'ai', text: "I'm having trouble connecting right now. Please check your internet connection and try again." }]);
+    } finally {
+      setIsVaniTyping(false);
+    }
   };
 
   const handleAddExpense = (e) => {
@@ -773,21 +786,27 @@ export default function HealMarketplace({ onSpeak }) {
                 <p className="text-xs leading-relaxed font-medium">{msg.text}</p>
               </div>
             ))}
+            {isVaniTyping && (
+              <div className="max-w-[85%] p-3 shadow-sm self-start bg-white rounded-2xl rounded-tl-sm border border-gray-100">
+                <p className="text-xs leading-relaxed font-medium text-gray-400">Vani is typing...</p>
+              </div>
+            )}
           </div>
-          
+
           <div className="p-3 bg-white border-t border-gray-100 flex items-center gap-2">
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={chatMessage}
               onChange={(e) => setChatMessage(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="Ask about markets, prices..." 
+              placeholder="Ask about markets, prices..."
+              disabled={isVaniTyping}
               className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-green-500/20"
             />
-            <button 
+            <button
               onClick={handleSendMessage}
-              className={`p-2.5 rounded-xl transition-colors ${chatMessage.trim() ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-100 text-gray-400'}`}
-              disabled={!chatMessage.trim()}
+              className={`p-2.5 rounded-xl transition-colors ${chatMessage.trim() && !isVaniTyping ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-100 text-gray-400'}`}
+              disabled={!chatMessage.trim() || isVaniTyping}
             >
               <Send className="w-4 h-4" />
             </button>
