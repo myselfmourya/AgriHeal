@@ -50,7 +50,7 @@ function json(body: unknown, status = 200, origin: string | null = null) {
 
 // ── Models ─────────────────────────────────────────────────────────────────
 const MODELS = {
-  gemini: "gemini-2.0-flash",
+  gemini: "gemini-3.8-flash",
   claude: "claude-3-haiku-20240307",
   mistral: "mistral-small-latest",
   groq: "openai/gpt-oss-120b",
