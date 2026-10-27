@@ -10,6 +10,18 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useFarmer } from '../contexts/FarmerContext';
 import { fetchVegetationHealth } from '../services/satelliteService';
+import { fetchFarmWeather } from '../services/openMeteoService';
+
+const summarizeWeather = (w) => {
+  const notes = [];
+  if (w.rainProb >= 60) notes.push('Rain is highly likely today — hold off on spraying or fertilizer application.');
+  else if (w.rainProb >= 30) notes.push('There\'s a moderate chance of rain — plan irrigation and spraying around it.');
+  else notes.push('Low rain chance today — a good window for field work.');
+  if (w.humidity >= 70) notes.push('High humidity may increase fungal and pest risk.');
+  if (w.wind >= 20) notes.push(`Wind is strong (${w.wind} km/h) — spray drift risk if you spray today.`);
+  if (w.uv >= 8) notes.push('UV index is very high — avoid midday fieldwork if possible.');
+  return notes.join(' ');
+};
 
 export default function FarmCare() {
   const navigate = useNavigate();
@@ -19,6 +31,10 @@ export default function FarmCare() {
   const [vegetation, setVegetation] = useState(null);
   const [vegetationLoading, setVegetationLoading] = useState(true);
   const [vegetationError, setVegetationError] = useState(null);
+  const [weather, setWeather] = useState(null);
+  const [forecast, setForecast] = useState([]);
+  const [weatherLoading, setWeatherLoading] = useState(true);
+  const [weatherError, setWeatherError] = useState(null);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -43,38 +59,33 @@ export default function FarmCare() {
           } finally {
             setVegetationLoading(false);
           }
+
+          try {
+            const w = await fetchFarmWeather(latitude, longitude);
+            setWeather(w);
+            setForecast(w.forecast);
+          } catch (error) {
+            setWeatherError(error.message);
+          } finally {
+            setWeatherLoading(false);
+          }
         },
         () => {
           setLocationName('Field 1 (Paddy) • Active Monitoring');
           setVegetationError('Location access is needed to fetch real satellite data.');
           setVegetationLoading(false);
+          setWeatherError('Location access is needed to fetch real weather data.');
+          setWeatherLoading(false);
         }
       );
     } else {
       setLocationName('Field 1 (Paddy) • Active Monitoring');
       setVegetationError('Geolocation is not supported by this browser.');
       setVegetationLoading(false);
+      setWeatherError('Geolocation is not supported by this browser.');
+      setWeatherLoading(false);
     }
   }, []);
-
-  
-  // Simulated Data (Realistic for Demo)
-  const weather = {
-    temp: 28, humidity: 65, rainProb: 70, wind: 18, uv: 6, pressure: 1012,
-    sunrise: '05:45 AM', sunset: '06:30 PM',
-    condition: 'Partly Cloudy',
-    aiSummary: "Rainfall is highly probable later today. High humidity might increase pest risks. Advise holding off on any chemical spraying."
-  };
-
-  const forecast = [
-    { day: 'Today', icon: CloudRain, high: 28, low: 22, rain: '70%' },
-    { day: 'Thu', icon: CloudRain, high: 27, low: 21, rain: '80%' },
-    { day: 'Fri', icon: Sun, high: 32, low: 23, rain: '10%' },
-    { day: 'Sat', icon: Sun, high: 33, low: 24, rain: '5%' },
-    { day: 'Sun', icon: CloudRain, high: 29, low: 22, rain: '40%' },
-    { day: 'Mon', icon: CloudRain, high: 28, low: 22, rain: '50%' },
-    { day: 'Tue', icon: Sun, high: 31, low: 23, rain: '20%' },
-  ];
 
   const soil = {
     score: 85,
@@ -126,7 +137,7 @@ export default function FarmCare() {
 
       <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-center gap-2 text-amber-800 text-sm">
         <span>⚠️</span>
-        <span><strong>Weather, soil, irrigation, pest-risk, and forecast data below are simulated for demo purposes.</strong> No soil or weather sensors are connected to your farm yet — do not use these readings for real irrigation, spraying, or fertilizer decisions. Vegetation Health below is real, live Sentinel-2 satellite data.</span>
+        <span><strong>Soil, irrigation, and pest-risk data below are simulated for demo purposes.</strong> No soil sensors are connected to your farm yet — do not use these readings for real irrigation, spraying, or fertilizer decisions. Weather, the 7-day forecast, and Vegetation Health below are real, live data.</span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
@@ -142,8 +153,21 @@ export default function FarmCare() {
             
             <h2 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
               <Sun className="w-5 h-5 text-orange-500" /> Weather Intelligence
+              <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-green-100 text-green-700">Live</span>
             </h2>
-            
+
+            {weatherLoading && (
+              <div className="flex items-center gap-2 text-slate-400 text-xs font-bold py-4">
+                <Loader2 className="w-4 h-4 animate-spin" /> Fetching live weather...
+              </div>
+            )}
+
+            {!weatherLoading && weatherError && (
+              <p className="text-xs font-medium text-slate-500 py-2">{weatherError}</p>
+            )}
+
+            {!weatherLoading && weather && (
+            <>
             <div className="flex flex-col md:flex-row gap-8 items-center mb-8 relative z-10">
               <div className="flex items-center gap-4">
                 <CloudRain className="w-16 h-16 text-blue-500" />
@@ -152,7 +176,7 @@ export default function FarmCare() {
                   <p className="text-sm font-bold text-slate-500">{weather.condition}</p>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4 flex-1 w-full">
                 <div className="bg-blue-50/50 rounded-2xl p-4 border border-blue-100 flex flex-col justify-center">
                   <p className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 mb-1"><Droplets className="w-3 h-3 text-blue-500 shrink-0"/> Humidity</p>
@@ -196,27 +220,32 @@ export default function FarmCare() {
               </div>
               <div>
                 <p className="text-xs font-bold text-green-800 mb-1">Vani's Weather Impact Analysis:</p>
-                <p className="text-sm font-medium text-green-900 leading-relaxed">{weather.aiSummary}</p>
+                <p className="text-sm font-medium text-green-900 leading-relaxed">{summarizeWeather(weather)}</p>
               </div>
             </div>
-            
+
             {/* 7-Day Forecast Row */}
             <div className="mt-8 border-t border-gray-100 pt-6">
               <h3 className="text-xs font-bold text-slate-500 uppercase mb-4">7-Day Outlook</h3>
               <div className="flex overflow-x-auto pb-2 gap-2 snap-x scrollbar-hide">
-                {forecast.map((day, idx) => (
+                {forecast.map((day, idx) => {
+                  const DayIcon = day.rainy ? CloudRain : Sun;
+                  return (
                   <div key={idx} className="shrink-0 w-[4.5rem] flex flex-col items-center bg-gray-50 rounded-xl p-3 border border-gray-100 snap-center">
                     <p className="text-[11px] font-bold text-slate-600 mb-2">{day.day}</p>
-                    <day.icon className={`w-6 h-6 mb-2 ${day.icon === Sun ? 'text-orange-500' : 'text-blue-500'}`} />
+                    <DayIcon className={`w-6 h-6 mb-2 ${day.rainy ? 'text-blue-500' : 'text-orange-500'}`} />
                     <p className="text-sm font-black text-slate-800">{day.high}°</p>
                     <p className="text-[10px] font-bold text-slate-400">{day.low}°</p>
                     <div className="mt-2 flex items-center gap-1 text-[9px] font-bold text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
                       <Droplets className="w-2.5 h-2.5" /> {day.rain}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
+            </>
+            )}
           </section>
 
           {/* AI Crop Impact Analysis */}
