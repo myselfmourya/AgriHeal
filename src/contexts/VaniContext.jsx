@@ -27,6 +27,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { generateVaniResponse } from '../services/aiService';
 import { getGlobalContext } from '../services/contextService';
+import { fetchWeatherByCoords } from '../services/weatherService';
 import { supabase } from '../lib/supabase';
 
 export const LANGS = [
@@ -311,10 +312,7 @@ export const VaniProvider = ({ children }) => {
       navigator.geolocation.getCurrentPosition(async (pos) => {
         try {
           const { latitude: lat, longitude: lon } = pos.coords;
-          const key  = import.meta.env.VITE_WEATHER_API_KEY;
-          const res  = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${key}&units=metric`);
-          const data = await res.json();
-          const w = { temp: Math.round(data.main.temp), condition: data.weather[0].main, city: data.name, humidity: data.main.humidity };
+          const w = await fetchWeatherByCoords(lat, lon);
           weatherCacheRef.current = w;
           weatherTimeRef.current  = now;
           resolve(w);

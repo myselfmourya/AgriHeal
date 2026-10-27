@@ -1,46 +1,27 @@
 /**
  * Weather Service
- * Fetches real-time weather by:
+ * Fetches real-time weather via the Supabase `weather-proxy` Edge Function,
+ * which calls OpenWeatherMap server-side using WEATHER_API_KEY. The browser
+ * never sees the key.
  * 1. Geolocation (lat/lon) — most accurate
  * 2. City name fallback
  */
+import { supabase } from '../lib/supabase';
 
-const WEATHER_API_KEY = import.meta.env.VITE_WEATHER_API_KEY;
-const BASE = 'https://api.openweathermap.org/data/2.5/weather';
-
-const transform = (data) => ({
-  temperature: `${Math.round(data.main.temp)}°C`,
-  tempRaw: Math.round(data.main.temp),
-  feelsLike: `${Math.round(data.main.feels_like)}°C`,
-  condition: data.weather[0].main,
-  description: data.weather[0].description,
-  humidity: `${data.main.humidity}%`,
-  humidityRaw: data.main.humidity,
-  wind: `${Math.round(data.wind.speed * 3.6)} km/h`,
-  rainChance: `${data.clouds?.all ?? 0}%`,
-  city: data.name,
-  source: 'api',
-  timestamp: new Date().toISOString(),
-  freshness: 'live',
-});
+const invokeWeatherProxy = async (body) => {
+  const { data, error } = await supabase.functions.invoke('weather-proxy', { body });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+};
 
 /**
  * Fetch weather using the browser's Geolocation API.
  * Falls back to `location` (city name) if geolocation fails or is denied.
  */
-export const fetchWeatherByCoords = async (lat, lon) => {
-  if (!WEATHER_API_KEY) throw new Error('Missing VITE_WEATHER_API_KEY');
-  const res = await fetch(`${BASE}?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`);
-  if (!res.ok) throw new Error(`Weather API error: ${res.status}`);
-  return transform(await res.json());
-};
+export const fetchWeatherByCoords = async (lat, lon) => invokeWeatherProxy({ lat, lon });
 
-export const fetchWeather = async (location) => {
-  if (!WEATHER_API_KEY) throw new Error('Missing VITE_WEATHER_API_KEY');
-  const res = await fetch(`${BASE}?q=${encodeURIComponent(location)}&appid=${WEATHER_API_KEY}&units=metric`);
-  if (!res.ok) throw new Error(`Weather API error: ${res.status}`);
-  return transform(await res.json());
-};
+export const fetchWeather = async (location) => invokeWeatherProxy({ location });
 
 /**
  * Best-effort weather: tries geolocation first, falls back to city name.
