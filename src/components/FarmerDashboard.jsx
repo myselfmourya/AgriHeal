@@ -65,13 +65,6 @@ export default function FarmerDashboard() {
   ], []);
 
   useEffect(() => {
-    // Mock fetching a reminder
-    setReminder({
-      title: "Fertilize Wheat Crop",
-      type: "Task",
-      date: new Date().toLocaleDateString()
-    });
-
     // Fetch AI-generated agri news
     const loadNews = async () => {
       try {
