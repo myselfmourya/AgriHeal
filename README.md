@@ -1,11 +1,11 @@
 # AgriHeal 🌾
 
-AgriHeal is a 100% software platform merging AI crop diagnostics with proactive rural health management, built for farmers and their communities.
+AgriHeal is a 100% software platform merging AI crop diagnostics with proactive farmer and crop health management, built for farmers and their communities.
 
 ## Features
 - **Crop Diagnostics** — AI-powered analysis for crop health, pests, and disease detection.
 - **Vani Voice AI** — A global, voice-first assistant for hands-free navigation and support in local languages.
-- **Farm & Health Records** — Centralized tracking for farm activity, crop care, and personal/community health.
+- **Farm & Health Records** — Centralized tracking for farm activity, crop care, and farmer/community health.
 - **Community & Experts** — Connect with local vendors, agricultural experts, and the farming community.
 - **Market & Schemes** — Fertiliser/tools store, government schemes center, and news updates relevant to farmers.
 - **Offline-first PWA** — Installable, works with local storage (Dexie/localForage) for low-connectivity rural areas.
