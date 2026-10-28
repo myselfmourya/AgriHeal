@@ -127,16 +127,10 @@ export function FarmerProvider({ children }) {
            setMyCrops(getLocalCrops())
         }
 
-        // Load notifications from local storage as fallback
+        // Notifications are real, user-generated alerts saved locally —
+        // no notifications saved means no notifications yet, not placeholder ones.
         const savedNotifs = localStorage.getItem('ah-notifications')
-        if (savedNotifs) {
-          setNotifications(JSON.parse(savedNotifs))
-        } else {
-          setNotifications([
-            { id: 1, title: 'Rice Blast Alert', message: 'High risk of Rice Blast detected in your area.', type: 'Critical', category: 'Crop', time: '2h ago', group: 'Today', unread: true },
-            { id: 2, title: 'Vaccination Due', message: 'Cattle needs FMD vaccination.', type: 'Reminder', category: 'Livestock', time: '5h ago', group: 'Today', unread: true }
-          ])
-        }
+        setNotifications(savedNotifs ? JSON.parse(savedNotifs) : [])
 
       } catch (e) {
         console.error("Supabase fetch error:", e)

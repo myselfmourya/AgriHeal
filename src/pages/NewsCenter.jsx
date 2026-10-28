@@ -29,6 +29,7 @@ export default function NewsCenter() {
   const [searchQuery, setSearchQuery] = useState('');
   const [news, setNews] = useState([]);
   const [newsLoading, setNewsLoading] = useState(true);
+  const [newsError, setNewsError] = useState(false);
   const [expanded, setExpanded] = useState(null);
 
   const loadNews = async (forceRefresh = false) => {
@@ -37,9 +38,11 @@ export default function NewsCenter() {
       const fetchedNews = await fetchNews(profile?.location || "India", profile?.crops || ["Wheat", "Rice"], 'en', forceRefresh);
       if (fetchedNews && fetchedNews.length > 0) {
         setNews(fetchedNews);
+        setNewsError(false);
       }
     } catch (err) {
       console.error("Error loading news:", err);
+      setNewsError(true);
     } finally {
       setNewsLoading(false);
     }
@@ -122,7 +125,7 @@ export default function NewsCenter() {
         {newsLoading ? (
           <div className="flex items-center gap-2 bg-green-50 rounded-2xl px-4 py-3 mb-4 text-green-600 text-sm">
             <RefreshCw className="w-4 h-4 animate-spin shrink-0" />
-            {t("Fetching latest agricultural news with AI...")}
+            {t("Fetching latest agricultural news...")}
           </div>
         ) : null}
 
@@ -194,6 +197,18 @@ export default function NewsCenter() {
                 </motion.div>
               );
             })}
+          </div>
+        ) : newsError ? (
+          <div className="py-12 text-center bg-white/70 backdrop-blur-md border border-gray-100 rounded-3xl">
+            <Globe className="mx-auto text-gray-300 mb-4 w-12 h-12" />
+            <h3 className="text-[15px] font-bold text-gray-900 mb-1">{t("Couldn't load live news")}</h3>
+            <p className="text-[13px] text-gray-500 mb-4">{t("The news service is temporarily unavailable. Please check your connection and try again.")}</p>
+            <button
+              onClick={() => loadNews(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-xl text-xs font-bold hover:bg-green-700 active:scale-[0.98] transition-all"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> {t("Retry")}
+            </button>
           </div>
         ) : (
           <div className="py-12 text-center bg-white/70 backdrop-blur-md border border-gray-100 rounded-3xl">
