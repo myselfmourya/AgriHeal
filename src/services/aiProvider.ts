@@ -48,17 +48,29 @@ export const generateStructuredResponse = async (
 ): Promise<unknown> => {
   const fullPrompt = `${prompt}\n\nIMPORTANT: You must return the output STRICTLY as a valid JSON object matching this description: ${schemaDescription}. Do not include markdown \`\`\`json blocks, just the raw JSON.`;
 
-  let result = await callProxy({ intent: 'structured', prompt: fullPrompt, systemInstruction });
+  const raw = await callProxy({ intent: 'structured', prompt: fullPrompt, systemInstruction });
 
-  result = result.trim();
-  if (result.startsWith('```json')) result = result.slice(7, -3).trim();
-  else if (result.startsWith('```')) result = result.slice(3, -3).trim();
+  // Models don't reliably stick to "raw JSON only" — strip a ```json ... ```
+  // fence wherever it appears (not just at the very start), and fall back to
+  // the outermost {...} / [...] span so stray prose before/after the JSON
+  // doesn't break parsing.
+  let result = raw.trim();
+  const fenceMatch = result.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fenceMatch) {
+    result = fenceMatch[1].trim();
+  } else {
+    const firstBrace = result.search(/[{[]/);
+    const lastBrace = Math.max(result.lastIndexOf('}'), result.lastIndexOf(']'));
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      result = result.slice(firstBrace, lastBrace + 1);
+    }
+  }
 
   try {
     return JSON.parse(result);
   } catch (e) {
-    console.error("Failed to parse JSON from Mistral:", result);
-    throw new Error("Mistral returned invalid JSON");
+    console.error("Failed to parse JSON from AI response:", raw);
+    throw new Error("AI returned invalid JSON");
   }
 };
 

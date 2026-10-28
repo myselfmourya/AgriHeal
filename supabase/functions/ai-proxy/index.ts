@@ -4,14 +4,14 @@
  * All AI provider keys live here as Deno secrets.
  * The browser never sees any key — it only sends authenticated requests to this function.
  *
- * Supported providers (in priority fallback order):
- *   chat/translate/summarize : groq → gemini → mistral → claude
- *   image                    : gemini → claude
- *   structured/document      : groq → claude → gemini → mistral
+ * Supported providers (in priority fallback order): Google Gemini, Groq, Mistral.
+ *   chat/translate/summarize : groq → gemini → mistral
+ *   image                    : gemini → groq (vision)
+ *   structured/document      : groq → gemini → mistral
  *
  * Groq leads the text-only chains — it's fast and its free tier is generous,
  * so routing ordinary chat/structured/document traffic there first keeps the
- * Gemini/Mistral/Claude quotas free for image analysis and fallback.
+ * Gemini/Mistral quota free for image analysis and fallback.
  *
  * Request body:
  *   { intent, prompt, systemInstruction?, base64Image?, mimeType? }
@@ -51,12 +51,33 @@ function json(body: unknown, status = 200, origin: string | null = null) {
 // ── Models ─────────────────────────────────────────────────────────────────
 const MODELS = {
   gemini: "gemini-3.8-flash",
-  claude: "claude-3-haiku-20240307",
   mistral: "mistral-small-latest",
   groq: "openai/gpt-oss-120b",
+  groqVision: "qwen/qwen3.8-27b",
 };
 
 // ── Provider implementations ───────────────────────────────────────────────
+
+// A hung provider (no response, not even an error) stalls the whole fallback
+// chain until the edge function's own runtime kills it — by then it's too
+// late to fall through to the next provider. Every provider call goes
+// through this so a slow/stuck API fails fast instead.
+const PROVIDER_TIMEOUT_MS = 15_000;
+
+async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error(`Request timed out after ${PROVIDER_TIMEOUT_MS}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 async function callGemini(
   prompt: string,
@@ -73,7 +94,7 @@ async function callGemini(
   if (base64Image) parts.push({ inline_data: { mime_type: mimeType, data: base64Image } });
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS.gemini}:generateContent?key=${key}`;
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ contents: [{ parts }], generationConfig: { maxOutputTokens: 4096 } }),
@@ -84,46 +105,10 @@ async function callGemini(
   return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
-async function callClaude(
-  prompt: string,
-  systemInstruction: string | null,
-  base64Image: string | null,
-  mimeType: string
-): Promise<string> {
-  const key = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!key) throw new Error("ANTHROPIC_API_KEY not configured");
-
-  const content: unknown[] = [];
-  if (base64Image) {
-    content.push({ type: "image", source: { type: "base64", media_type: mimeType, data: base64Image } });
-  }
-  content.push({ type: "text", text: prompt });
-
-  const payload: Record<string, unknown> = {
-    model: MODELS.claude,
-    max_tokens: 4096,
-    messages: [{ role: "user", content }],
-  };
-  if (systemInstruction) payload.system = systemInstruction;
-
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": key,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const data = await res.json();
-  if (!res.ok) throw new Error(`Claude error ${res.status}: ${JSON.stringify(data)}`);
-  return data.content?.[0]?.text ?? "";
-}
-
 async function callGroq(
   prompt: string,
-  systemInstruction: string | null
+  systemInstruction: string | null,
+  jsonMode = false
 ): Promise<string> {
   const key = Deno.env.get("GROQ_API_KEY");
   if (!key) throw new Error("GROQ_API_KEY not configured");
@@ -132,10 +117,15 @@ async function callGroq(
   if (systemInstruction) messages.push({ role: "system", content: systemInstruction });
   messages.push({ role: "user", content: prompt });
 
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+  const body: Record<string, unknown> = { model: MODELS.groq, messages, max_tokens: 4096 };
+  // Prompting alone doesn't reliably stop this model from answering
+  // conversationally — Groq's JSON mode makes it actually emit an object.
+  if (jsonMode) body.response_format = { type: "json_object" };
+
+  const res = await fetchWithTimeout("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-    body: JSON.stringify({ model: MODELS.groq, messages, max_tokens: 4096 }),
+    body: JSON.stringify(body),
   });
 
   const data = await res.json();
@@ -143,9 +133,40 @@ async function callGroq(
   return data.choices?.[0]?.message?.content ?? "";
 }
 
+async function callGroqVision(
+  prompt: string,
+  systemInstruction: string | null,
+  base64Image: string,
+  mimeType: string
+): Promise<string> {
+  const key = Deno.env.get("GROQ_API_KEY");
+  if (!key) throw new Error("GROQ_API_KEY not configured");
+
+  const messages: unknown[] = [];
+  if (systemInstruction) messages.push({ role: "system", content: systemInstruction });
+  messages.push({
+    role: "user",
+    content: [
+      { type: "text", text: prompt },
+      { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Image}` } },
+    ],
+  });
+
+  const res = await fetchWithTimeout("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+    body: JSON.stringify({ model: MODELS.groqVision, messages, max_tokens: 4096 }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(`Groq vision error ${res.status}: ${JSON.stringify(data)}`);
+  return data.choices?.[0]?.message?.content ?? "";
+}
+
 async function callMistral(
   prompt: string,
-  systemInstruction: string | null
+  systemInstruction: string | null,
+  jsonMode = false
 ): Promise<string> {
   const key = Deno.env.get("MISTRAL_API_KEY");
   if (!key) throw new Error("MISTRAL_API_KEY not configured");
@@ -154,10 +175,13 @@ async function callMistral(
   if (systemInstruction) messages.push({ role: "system", content: systemInstruction });
   messages.push({ role: "user", content: prompt });
 
-  const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
+  const body: Record<string, unknown> = { model: MODELS.mistral, messages, max_tokens: 4096 };
+  if (jsonMode) body.response_format = { type: "json_object" };
+
+  const res = await fetchWithTimeout("https://api.mistral.ai/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-    body: JSON.stringify({ model: MODELS.mistral, messages, max_tokens: 4096 }),
+    body: JSON.stringify(body),
   });
 
   const data = await res.json();
@@ -169,10 +193,10 @@ async function callMistral(
 type Intent = "chat" | "image" | "structured" | "document";
 
 const CHAINS: Record<Intent, string[]> = {
-  chat:       ["groq", "gemini", "mistral", "claude"],
-  image:      ["gemini", "claude"],
-  structured: ["groq", "claude", "gemini", "mistral"],
-  document:   ["groq", "claude", "gemini", "mistral"],
+  chat:       ["groq", "gemini", "mistral"],
+  image:      ["gemini", "groqVision"],
+  structured: ["groq", "gemini", "mistral"],
+  document:   ["groq", "gemini", "mistral"],
 };
 
 async function executeWithFallback(
@@ -184,14 +208,18 @@ async function executeWithFallback(
 ): Promise<string> {
   const chain = CHAINS[intent] ?? CHAINS.chat;
   const errors: string[] = [];
+  const jsonMode = intent === "structured";
 
   for (const provider of chain) {
     try {
       console.log(`[ai-proxy] intent=${intent} trying=${provider}`);
-      if (provider === "groq") return await callGroq(prompt, systemInstruction);
+      if (provider === "groq") return await callGroq(prompt, systemInstruction, jsonMode);
+      if (provider === "groqVision") {
+        if (!base64Image) throw new Error("groqVision requires an image");
+        return await callGroqVision(prompt, systemInstruction, base64Image, mimeType);
+      }
       if (provider === "gemini") return await callGemini(prompt, systemInstruction, base64Image, mimeType);
-      if (provider === "claude") return await callClaude(prompt, systemInstruction, base64Image, mimeType);
-      if (provider === "mistral") return await callMistral(prompt, systemInstruction);
+      if (provider === "mistral") return await callMistral(prompt, systemInstruction, jsonMode);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn(`[ai-proxy] ${provider} failed: ${msg}`);
