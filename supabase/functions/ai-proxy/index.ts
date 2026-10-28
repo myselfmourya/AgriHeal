@@ -5,14 +5,17 @@
  * The browser never sees any key — it only sends authenticated requests to this function.
  *
  * Supported providers (in priority fallback order): Google Gemini, Groq, Mistral.
- *   chat/translate/summarize : groq → gemini → mistral
- *   image                    : groq (vision) → gemini
- *   structured/document      : groq → gemini → mistral
+ *   chat/document             : groq → gemini → mistral
+ *   image                     : groq (vision) → gemini
+ *   structured                : groq → gemini
  *
- * Every provider call has a 10s timeout so a stuck/slow provider fails fast
- * instead of stalling the whole fallback chain. Structured/image/document
- * intents use a low temperature for consistent, factual output; chat keeps
- * the provider default so responses still read naturally.
+ * Every provider call has a 6s timeout so a stuck/slow provider fails fast
+ * instead of stalling the whole fallback chain — short chains on image/
+ * structured bound a two-step analysis (describe, then structure) to a
+ * ~24s absolute worst case, well under what it was before. Structured/
+ * image/document intents use a low temperature for consistent, factual
+ * output; chat keeps the provider default so responses still read
+ * naturally.
  *
  * Groq leads the text-only chains — it's fast and its free tier is generous,
  * so routing ordinary chat/structured/document traffic there first keeps the
@@ -67,7 +70,7 @@ const MODELS = {
 // chain until the edge function's own runtime kills it — by then it's too
 // late to fall through to the next provider. Every provider call goes
 // through this so a slow/stuck API fails fast instead.
-const PROVIDER_TIMEOUT_MS = 10_000;
+const PROVIDER_TIMEOUT_MS = 6_000;
 
 async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
   const controller = new AbortController();
@@ -89,7 +92,8 @@ async function callGemini(
   systemInstruction: string | null,
   base64Image: string | null,
   mimeType: string,
-  temperature?: number
+  temperature?: number,
+  jsonMode = false
 ): Promise<string> {
   const key = Deno.env.get("GEMINI_API_KEY");
   if (!key) throw new Error("GEMINI_API_KEY not configured");
@@ -101,6 +105,7 @@ async function callGemini(
 
   const generationConfig: Record<string, unknown> = { maxOutputTokens: 4096 };
   if (temperature !== undefined) generationConfig.temperature = temperature;
+  if (jsonMode) generationConfig.responseMimeType = "application/json";
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS.gemini}:generateContent?key=${key}`;
   const res = await fetchWithTimeout(url, {
@@ -149,7 +154,8 @@ async function callGroqVision(
   systemInstruction: string | null,
   base64Image: string,
   mimeType: string,
-  temperature?: number
+  temperature?: number,
+  jsonMode = false
 ): Promise<string> {
   const key = Deno.env.get("GROQ_API_KEY");
   if (!key) throw new Error("GROQ_API_KEY not configured");
@@ -166,6 +172,7 @@ async function callGroqVision(
 
   const body: Record<string, unknown> = { model: MODELS.groqVision, messages, max_tokens: 4096 };
   if (temperature !== undefined) body.temperature = temperature;
+  if (jsonMode) body.response_format = { type: "json_object" };
 
   const res = await fetchWithTimeout("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -215,7 +222,12 @@ const CHAINS: Record<Intent, string[]> = {
   // overloaded/slow — trying it first just means waiting out its timeout
   // before falling through. Gemini stays as a second opinion/fallback.
   image:      ["groqVision", "gemini"],
-  structured: ["groq", "gemini", "mistral"],
+  // Two providers, not three: structured calls are often the second half
+  // of a two-step analysis (image description → structured diagnosis), so
+  // keeping this chain short bounds the combined worst-case latency.
+  // Mistral stays in chat/document, where it's less likely to be on a
+  // tight interactive-latency path.
+  structured: ["groq", "gemini"],
   document:   ["groq", "gemini", "mistral"],
 };
 
@@ -231,11 +243,12 @@ async function executeWithFallback(
   prompt: string,
   systemInstruction: string | null,
   base64Image: string | null,
-  mimeType: string
+  mimeType: string,
+  jsonModeOverride?: boolean
 ): Promise<string> {
   const chain = CHAINS[intent] ?? CHAINS.chat;
   const errors: string[] = [];
-  const jsonMode = intent === "structured";
+  const jsonMode = jsonModeOverride ?? intent === "structured";
   const temperature = temperatureFor(intent);
 
   for (const provider of chain) {
@@ -244,9 +257,9 @@ async function executeWithFallback(
       if (provider === "groq") return await callGroq(prompt, systemInstruction, jsonMode, temperature);
       if (provider === "groqVision") {
         if (!base64Image) throw new Error("groqVision requires an image");
-        return await callGroqVision(prompt, systemInstruction, base64Image, mimeType, temperature);
+        return await callGroqVision(prompt, systemInstruction, base64Image, mimeType, temperature, jsonMode);
       }
-      if (provider === "gemini") return await callGemini(prompt, systemInstruction, base64Image, mimeType, temperature);
+      if (provider === "gemini") return await callGemini(prompt, systemInstruction, base64Image, mimeType, temperature, jsonMode);
       if (provider === "mistral") return await callMistral(prompt, systemInstruction, jsonMode, temperature);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -313,6 +326,7 @@ serve(async (req) => {
       systemInstruction?: string | null;
       base64Image?: string | null;
       mimeType?: string;
+      jsonMode?: boolean;
     };
 
     const intent = (body.intent ?? "chat") as Intent;
@@ -320,13 +334,14 @@ serve(async (req) => {
     const systemInstruction = body.systemInstruction ?? null;
     const base64Image = body.base64Image ?? null;
     const mimeType = body.mimeType ?? "image/jpeg";
+    const jsonMode = body.jsonMode;
 
     if (!prompt && !base64Image) {
       return json({ error: "prompt or base64Image is required" }, 400, origin);
     }
 
     // Execute
-    const text = await executeWithFallback(intent, prompt, systemInstruction, base64Image, mimeType);
+    const text = await executeWithFallback(intent, prompt, systemInstruction, base64Image, mimeType, jsonMode);
 
     return json({ text }, 200, origin);
 
