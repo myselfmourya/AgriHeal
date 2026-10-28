@@ -4,6 +4,7 @@ import { useFarmer } from '../contexts/FarmerContext'
 import FertiliserDetailModal from '../components/FertiliserDetailModal'
 import FertiliserCompareModal from '../components/FertiliserCompareModal'
 import { FERTILISERS, CROP_FAQS } from '../data/fertilisers'
+import { useVoiceActions } from '../hooks/useVoiceActions'
 
 export default function FertilisersPage() {
   const { myCrops } = useFarmer()
@@ -20,6 +21,31 @@ export default function FertilisersPage() {
       setSelectedCrop(myCrops[0])
     }
   }, [myCrops])
+
+  useVoiceActions([
+    {
+      id: 'fertilisers.search',
+      description: 'Search the fertiliser list by name or brand',
+      params: { query: 'string, required search text' },
+      destructive: false,
+      handler: ({ query }) => {
+        setSearchQuery(query || '');
+        return query ? `Searching for "${query}".` : 'Cleared the search.';
+      },
+    },
+    {
+      id: 'fertilisers.selectCrop',
+      description: "Switch which of the farmer's crops the fertiliser recommendations are shown for",
+      params: { cropName: 'string, required — must be one of the farmer\'s own crops' },
+      destructive: false,
+      handler: ({ cropName }) => {
+        const match = myCrops.find((c) => c.name.toLowerCase() === String(cropName || '').toLowerCase());
+        if (!match) throw new Error(`"${cropName}" isn't one of your crops.`);
+        setSelectedCrop(match);
+        return `Showing fertilisers for ${match.name}.`;
+      },
+    },
+  ], [myCrops]);
 
   // FILTERING LOGIC
   let filteredFertilisers = FERTILISERS.filter(f => {

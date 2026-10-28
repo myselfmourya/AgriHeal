@@ -6,6 +6,7 @@ import { Volume2, Search, ArrowLeft, Globe, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { fetchNews } from '../services/aiNewsService';
 import { useTranslation } from 'react-i18next';
+import { useVoiceActions } from '../hooks/useVoiceActions';
 
 const CATEGORY_COLORS = {
   "Crop Diseases": "bg-red-100 text-red-700",
@@ -51,6 +52,41 @@ export default function NewsCenter() {
   const handleListen = (article) => {
     speak(`${article.headline || article.title}. ${article.summary || article.description}`);
   };
+
+  useVoiceActions([
+    {
+      id: 'news.search',
+      description: 'Search agri news articles by keyword',
+      params: { query: 'string, required' },
+      destructive: false,
+      handler: ({ query }) => {
+        setSearchQuery(query || '');
+        return query ? `Searching news for "${query}".` : 'Cleared the search.';
+      },
+    },
+    {
+      id: 'news.switchCategory',
+      description: `Filter news by category: ${CATEGORIES.join(', ')}`,
+      params: { category: `one of: ${CATEGORIES.join(', ')}` },
+      destructive: false,
+      handler: ({ category }) => {
+        const match = CATEGORIES.find((c) => c.toLowerCase() === String(category || '').toLowerCase());
+        if (!match) throw new Error(`"${category}" isn't a news category here.`);
+        setActiveTab(match);
+        return `Showing ${match} news.`;
+      },
+    },
+    {
+      id: 'news.refresh',
+      description: 'Refresh the news feed with the latest articles',
+      params: {},
+      destructive: false,
+      handler: async () => {
+        await loadNews(true);
+        return 'News refreshed.';
+      },
+    },
+  ], [profile]);
 
   const filteredNews = useMemo(() => {
     return news.filter(article => {

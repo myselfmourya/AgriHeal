@@ -4,6 +4,7 @@ import { User, Sprout, PawPrint, Heart, Scroll, Shield } from 'lucide-react'
 import { useVani, LANGS } from '../contexts/VaniContext'
 import { useFarmer } from '../contexts/FarmerContext'
 import { useNotification } from '../contexts/NotificationContext'
+import { useVoiceActions } from '../hooks/useVoiceActions'
 
 export default function Profile() {
   const { speak } = useVani()
@@ -49,6 +50,33 @@ export default function Profile() {
     const { name, value } = e.target
     setEditForm(prev => ({ ...prev, [name]: value }))
   }
+
+  const VOICE_PROFILE_FIELDS = ['name', 'phone', 'village', 'district', 'state', 'farmName', 'landSize', 'soilType', 'waterSource', 'irrigation', 'experience'];
+
+  useVoiceActions([
+    {
+      id: 'profile.updateField',
+      description: 'Update one field of the farmer\'s profile — does not save until profile.save is also called',
+      params: { field: `one of: ${VOICE_PROFILE_FIELDS.join(', ')}`, value: 'the new value, as plain text' },
+      destructive: false, // only edits the in-progress form; profile.save is the real submit
+      handler: ({ field, value }) => {
+        if (!VOICE_PROFILE_FIELDS.includes(field)) throw new Error(`I can't edit "${field}" — that's not a profile field I'm allowed to change.`);
+        setIsEditing(true);
+        setEditForm((prev) => ({ ...prev, [field]: value }));
+        return `Set ${field} to ${value}. Say "save my profile" when you're done.`;
+      },
+    },
+    {
+      id: 'profile.save',
+      description: 'Save the profile changes',
+      params: {},
+      destructive: true, // writes to the real farmers row
+      handler: () => {
+        handleSave();
+        return 'Profile saved.';
+      },
+    },
+  ], [editForm]);
 
   const tabs = [
     { id: 'personal', icon: User, label: 'Personal' },

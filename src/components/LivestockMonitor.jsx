@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useFarmer } from '../contexts/FarmerContext';
 import { useNavigate } from 'react-router-dom';
 import AddLivestockModal from './AddLivestockModal';
+import { useVoiceActions } from '../hooks/useVoiceActions';
 
 export default function LivestockMonitor({ onSpeak }) {
   const [activeTab, setActiveTab] = useState('All');
@@ -69,6 +70,47 @@ export default function LivestockMonitor({ onSpeak }) {
   // Derive tabs from data
   const speciesSet = new Set(livestockList.map(item => item.species));
   const tabs = ['All', ...Array.from(speciesSet)];
+
+  useVoiceActions([
+    {
+      id: 'livestock.addLivestock',
+      description: 'Add a new livestock entry — species and breed are required, head count and average temperature are optional',
+      params: {
+        species: 'one of: "Cattle", "Poultry", "Goat", "Sheep", "Pig" — required',
+        breed: 'string, required — e.g. "Holstein Friesian", "Murrah"',
+        headCount: 'optional number, total animals',
+        averageTemp: 'optional number, average body temp in °C',
+      },
+      destructive: true, // creates a real record — confirm first
+      handler: async ({ species, breed, headCount, averageTemp }) => {
+        if (!species || !breed) throw new Error('I need both a species and a breed to add livestock.');
+        if (!profile?.id) throw new Error('No farmer profile loaded yet.');
+        const { error } = await supabase.from('livestock').insert([{
+          farmer_id: profile.id,
+          species,
+          breed,
+          head_count: headCount ? parseInt(headCount) : null,
+          health_status: 'Healthy',
+          average_temp: averageTemp ? parseFloat(averageTemp) : null,
+        }]);
+        if (error) throw new Error(error.message);
+        await fetchLivestock();
+        return `Added ${breed} ${species} to your livestock.`;
+      },
+    },
+    {
+      id: 'livestock.switchTab',
+      description: 'Filter the livestock list by species, or show all',
+      params: { species: `one of: ${JSON.stringify(tabs)}` },
+      destructive: false,
+      handler: ({ species }) => {
+        const match = tabs.find((t) => t.toLowerCase() === String(species || '').toLowerCase());
+        if (!match) throw new Error(`I don't have "${species}" in your livestock list.`);
+        setActiveTab(match);
+        return `Showing ${match}.`;
+      },
+    },
+  ], [profile?.id, tabs.join(',')]);
 
   // Filter data based on active tab
   const filteredList = activeTab === 'All' 

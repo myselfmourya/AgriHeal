@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useFarmer } from '../contexts/FarmerContext';
 import { useVani } from '../contexts/VaniContext';
 import { useNavigate } from 'react-router-dom';
+import { useVoiceActions } from '../hooks/useVoiceActions';
 
 const cn = (...classes) => classes.filter(Boolean).join(' ');
 
@@ -273,6 +274,48 @@ function AssistantTab() {
         }
     };
 
+    const clearAllChatHistory = () => {
+        localStorage.removeItem("agriheal_ai_history");
+        setChatHistory([]);
+    };
+
+    useVoiceActions([
+        {
+            id: 'assistant.ask',
+            description: 'Ask the AI assistant an agriculture question and get a spoken/written answer',
+            params: { question: 'string, required' },
+            destructive: false,
+            handler: async ({ question }) => {
+                if (!question) throw new Error('I need a question to ask.');
+                // send() returns the reply text directly — reading it from
+                // `messages` state here would be a stale closure, since this
+                // handler can run long after the render that created it.
+                const reply = await send(question);
+                return reply ? reply.replace(/[*#]/g, '') : 'Answered in the chat.';
+            },
+        },
+        {
+            id: 'assistant.newChat',
+            description: 'Archive the current chat and start a fresh conversation',
+            params: {},
+            destructive: false, // archives, does not delete
+            handler: () => {
+                saveCurrentChat();
+                return 'Started a new conversation.';
+            },
+        },
+        {
+            id: 'assistant.clearHistory',
+            description: 'Permanently delete all saved chat history',
+            params: {},
+            destructive: true,
+            handler: () => {
+                clearAllChatHistory();
+                return 'Cleared all chat history.';
+            },
+        },
+    ], [messages, chatHistory]);
+
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages, loading]);
@@ -291,15 +334,18 @@ function AssistantTab() {
             const prompt = `Recent context:\n${historyText}\nUser: ${text}\n\nProvide a helpful, empathetic, and expert agricultural response. Keep it concise, use markdown formatting, and emojis where appropriate. If it's a greeting, keep it very short.`;
             
             const reply = await generateText(prompt);
-            
+
             setMessages((p) => [...p, { role: "assistant", text: reply, timestamp: new Date() }]);
-            
+
             if (voiceMode) {
                 speak(reply.replace(/[*#]/g, ''));
             }
+            return reply;
         } catch (error) {
             console.error("AI Error:", error);
-            setMessages((p) => [...p, { role: "assistant", text: "I'm having trouble connecting to my brain right now. Please check your internet connection.", timestamp: new Date() }]);
+            const fallback = "I'm having trouble connecting to my brain right now. Please check your internet connection.";
+            setMessages((p) => [...p, { role: "assistant", text: fallback, timestamp: new Date() }]);
+            return fallback;
         } finally {
             setLoading(false);
         }
@@ -652,6 +698,21 @@ export default function AIAssistant() {
     const searchParams = new URLSearchParams(window.location.search);
     const initialTab = searchParams.get("tab") || "chat";
     const [activeTab, setActiveTab] = useState(TABS.some(t => t.id === initialTab) ? initialTab : "chat");
+
+    useVoiceActions([
+        {
+            id: 'assistant.switchTab',
+            description: `Switch which AI Assistant tool is shown: ${TABS.map(t => `"${t.id}" (${t.label})`).join(', ')}`,
+            params: { tab: `one of: ${TABS.map(t => t.id).join(', ')}` },
+            destructive: false,
+            handler: ({ tab }) => {
+                const match = TABS.find((t) => t.id === String(tab || '').toLowerCase());
+                if (!match) throw new Error(`I don't have a "${tab}" tool here.`);
+                setActiveTab(match.id);
+                return `Showing ${match.label}.`;
+            },
+        },
+    ], []);
 
     return (
         <div className="absolute left-0 md:left-64 right-0 top-0 bottom-0 z-40 flex flex-col mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl pt-16 md:pt-10 pb-24 md:pb-8 pointer-events-none">

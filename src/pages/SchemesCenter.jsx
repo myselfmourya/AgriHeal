@@ -6,6 +6,7 @@ import { Search, Volume2, Bookmark, CheckCircle2, XCircle, HelpCircle, ChevronRi
 
 import SchemeDetailModal from '../components/SchemeDetailModal';
 import { SCHEMES_DATA } from '../data/schemes';
+import { useVoiceActions } from '../hooks/useVoiceActions';
 
 const CATEGORIES = ['All', 'Central Govt', 'State Govt', 'Insurance', 'Loans', 'Subsidies'];
 
@@ -86,6 +87,54 @@ export default function SchemesCenter() {
       return next;
     });
   };
+
+  useVoiceActions([
+    {
+      id: 'schemes.search',
+      description: 'Search government schemes by name or keyword',
+      params: { query: 'string, required' },
+      destructive: false,
+      handler: ({ query }) => {
+        setSearchQuery(query || '');
+        return query ? `Searching for "${query}".` : 'Cleared the search.';
+      },
+    },
+    {
+      id: 'schemes.switchCategory',
+      description: `Filter the schemes list by category: ${CATEGORIES.join(', ')}`,
+      params: { category: `one of: ${CATEGORIES.join(', ')}` },
+      destructive: false,
+      handler: ({ category }) => {
+        const match = CATEGORIES.find((c) => c.toLowerCase() === String(category || '').toLowerCase());
+        if (!match) throw new Error(`"${category}" isn't a scheme category here.`);
+        setActiveTab(match);
+        return `Showing ${match} schemes.`;
+      },
+    },
+    {
+      id: 'schemes.saveScheme',
+      description: 'Save or unsave a government scheme by name, for later reference',
+      params: { schemeName: 'string, required' },
+      destructive: false,
+      handler: ({ schemeName }) => {
+        const match = SCHEMES_DATA.find((s) => s.name.toLowerCase().includes(String(schemeName || '').toLowerCase()));
+        if (!match) throw new Error(`I couldn't find a scheme matching "${schemeName}".`);
+        const wasSaved = savedSchemes.has(match.id);
+        handleToggleSave(match.id);
+        return wasSaved ? `Unsaved ${match.name}.` : `Saved ${match.name}.`;
+      },
+    },
+    {
+      id: 'schemes.checkEligibility',
+      description: "Run an eligibility check against the farmer's profile to highlight which schemes they qualify for",
+      params: {},
+      destructive: false,
+      handler: () => {
+        handleEligibilityCheck();
+        return 'Checking your eligibility now.';
+      },
+    },
+  ], [savedSchemes, profile, currentLocation]);
 
   const handleApply = (scheme) => {
     setApplyingScheme(scheme);

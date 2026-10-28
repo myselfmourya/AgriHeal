@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useFarmer } from '../contexts/FarmerContext';
 import { CATEGORIES, PRODUCTS_DATA, RENTAL_TOOLS } from '../data/storeProducts';
+import { useVoiceActions } from '../hooks/useVoiceActions';
 import ProductDetailModal from '../components/ProductDetailModal';
 import ProductCompareModal from '../components/ProductCompareModal';
 
@@ -39,6 +40,53 @@ export default function ToolsStore() {
       return [...prev, { ...product, quantity: 1 }];
     });
   };
+
+  useVoiceActions([
+    {
+      id: 'store.search',
+      description: 'Search tools and products by name',
+      params: { query: 'string, required' },
+      destructive: false,
+      handler: ({ query }) => {
+        setSearchQuery(query || '');
+        return query ? `Searching for "${query}".` : 'Cleared the search.';
+      },
+    },
+    {
+      id: 'store.switchCategory',
+      description: `Filter products by category: ${CATEGORIES.map(c => c.id).join(', ')}`,
+      params: { category: `one of: ${CATEGORIES.map(c => c.id).join(', ')}` },
+      destructive: false,
+      handler: ({ category }) => {
+        const match = CATEGORIES.find((c) => c.id.toLowerCase() === String(category || '').toLowerCase());
+        if (!match) throw new Error(`"${category}" isn't a category here.`);
+        setSelectedCategory(match.id);
+        return `Showing ${match.name || match.id}.`;
+      },
+    },
+    {
+      id: 'store.addToCart',
+      description: 'Add a product to the cart, by name',
+      params: { productName: 'string, required' },
+      destructive: false,
+      handler: ({ productName }) => {
+        const match = PRODUCTS_DATA.find((p) => p.name.toLowerCase().includes(String(productName || '').toLowerCase()));
+        if (!match) throw new Error(`I couldn't find a product matching "${productName}".`);
+        addToCart(match);
+        return `Added ${match.name} to your cart.`;
+      },
+    },
+    {
+      id: 'store.clearCart',
+      description: 'Empty the shopping cart',
+      params: {},
+      destructive: true,
+      handler: () => {
+        setCartItems([]);
+        return 'Cart cleared.';
+      },
+    },
+  ], [cartItems]);
 
   const updateQuantity = (productId, delta) => {
     setCartItems(prev => prev.map(item => {

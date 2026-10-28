@@ -1,11 +1,38 @@
 import React, { useState } from 'react';
 import { Shield, AlertTriangle, ScanLine, Leaf, Droplets, Wind, PhoneCall, Info, Camera, ChevronRight, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useVoiceActions } from '../hooks/useVoiceActions';
 
 export default function ToxiGuard({ onSpeak }) {
   const [activeTab, setActiveTab] = useState('scan');
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
+
+  useVoiceActions([
+    {
+      id: 'toxiguard.switchTab',
+      description: 'Switch which ToxiGuard section is shown: scan, safety, or guidelines',
+      params: { tab: 'one of: "scan", "safety", "guidelines"' },
+      destructive: false,
+      handler: ({ tab }) => {
+        const valid = ['scan', 'safety', 'guidelines'];
+        const match = valid.find((t) => t === String(tab || '').toLowerCase());
+        if (!match) throw new Error(`"${tab}" isn't a ToxiGuard section.`);
+        setActiveTab(match);
+        return `Showing ${match}.`;
+      },
+    },
+    {
+      id: 'toxiguard.scanLabel',
+      description: 'Scan a pesticide label for toxicity information (camera-based scan)',
+      params: {},
+      destructive: false,
+      handler: () => {
+        handleScan();
+        return 'Scanning the pesticide label now.';
+      },
+    },
+  ], []);
 
   const handleScan = () => {
     setIsScanning(true);

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Download, Trash2 } from 'lucide-react';
 import { dataManagementService } from '../../services/dataManagementService';
+import { useVoiceActions } from '../../hooks/useVoiceActions';
 
 // Keys that must survive a "clear cache" (auth/session + user prefs), everything
 // else in localStorage is app-generated cache (chat history, weather cache, etc.)
@@ -58,6 +59,30 @@ export default function DataStorageSettings() {
       : { type: 'error', text: 'Failed to export your data. Please try again.' });
     setExporting(false);
   };
+
+  useVoiceActions([
+    {
+      id: 'data.clearCache',
+      description: 'Clear locally cached app data (not login or settings) to free up space',
+      params: {},
+      destructive: true, // irreversible for the cached data
+      handler: () => {
+        handleClearCache();
+        return 'Cache cleared.';
+      },
+    },
+    {
+      id: 'data.exportMyData',
+      description: "Export all of the farmer's data as a downloadable file",
+      params: {},
+      destructive: false,
+      handler: async () => {
+        const ok = await dataManagementService.exportUserData();
+        if (!ok) throw new Error('Failed to export your data.');
+        return 'Your data export has started downloading.';
+      },
+    },
+  ], []);
 
   return (
     <div className="animate-in fade-in slide-in-from-right-4 duration-300 w-full pb-10">

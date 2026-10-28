@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Leaf, Droplets, TestTube, Sprout, Activity, RefreshCw, AlertCircle, CheckCircle2, ChevronRight } from 'lucide-react';
+import { useVoiceActions } from '../hooks/useVoiceActions';
 
 export default function CropNutrition({ onSpeak }) {
   const [selectedCrop, setSelectedCrop] = useState('wheat');
@@ -21,6 +22,31 @@ export default function CropNutrition({ onSpeak }) {
     ph: 6.2,
     organicMatter: 2.4
   };
+
+  useVoiceActions([
+    {
+      id: 'nutrition.selectCrop',
+      description: 'Select which crop to analyze soil nutrition for',
+      params: { cropName: `one of: ${crops.map(c => c.name).join(', ')}` },
+      destructive: false,
+      handler: ({ cropName }) => {
+        const match = crops.find((c) => c.name.toLowerCase() === String(cropName || '').toLowerCase());
+        if (!match) throw new Error(`"${cropName}" isn't a crop I can analyze here.`);
+        setSelectedCrop(match.id);
+        return `Selected ${match.name}.`;
+      },
+    },
+    {
+      id: 'nutrition.analyze',
+      description: 'Run the soil nutrition analysis for the currently selected crop',
+      params: {},
+      destructive: false,
+      handler: () => {
+        handleAnalyze();
+        return `Analyzing soil compatibility for ${crops.find(c => c.id === selectedCrop)?.name}.`;
+      },
+    },
+  ], [selectedCrop]);
 
   const handleAnalyze = () => {
     setAnalyzing(true);

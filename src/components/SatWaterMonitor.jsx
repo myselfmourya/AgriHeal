@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { fetchFarmWeather } from '../services/openMeteoService';
 import { getIrrigationRecommendation } from '../services/farmRiskRules';
+import { useVoiceActions } from '../hooks/useVoiceActions';
 
 export default function SatWaterMonitor({ onSpeak }) {
   const [loading, setLoading] = useState(true);
@@ -53,6 +54,19 @@ export default function SatWaterMonitor({ onSpeak }) {
       }
     );
   }, []);
+
+  useVoiceActions([
+    {
+      id: 'water.readStatus',
+      description: "Read the farm's current water/soil moisture status aloud",
+      params: {},
+      destructive: false,
+      handler: () => {
+        if (!data) throw new Error('Water status data is still loading.');
+        return `Farm water status for ${locationName}. Soil moisture is at ${data.weather.soilMoisturePercent}%. ${data.irrigation.reasoning} Water quality data is not available — no water testing sensor is connected.`;
+      },
+    },
+  ], [data, locationName]);
 
   const handleSpeakStatus = () => {
     if (!data || !onSpeak) return;

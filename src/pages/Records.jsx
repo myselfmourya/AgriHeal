@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ConfirmModal } from "../components/ui/ConfirmModal";
 import { useTranslation } from "react-i18next";
 import { exportDataAsJSON, generateFarmSummaryPDF } from "../lib/exportUtils";
+import { useVoiceActions } from "../hooks/useVoiceActions";
 
 function cn(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -118,6 +119,77 @@ export default function Records() {
     }
     setUploading(false);
   };
+
+  const addRecordDirect = async ({ title, category }) => {
+    if (!title) throw new Error('I need a title to add a record.');
+    const cat = CATEGORIES.find((c) => c.id.toLowerCase() === String(category || '').toLowerCase())?.id || 'Farm Documents';
+    const savedRecord = {
+      title,
+      category: cat,
+      doctor: '',
+      size: '0 MB',
+      id: 'rec_' + Date.now(),
+      userId,
+      uploadedAt: new Date().toISOString(),
+    };
+    const cached = localStorage.getItem(`agriheal_records_${userId}`);
+    let parsed = [];
+    if (cached) {
+      try { parsed = JSON.parse(cached); } catch (e) { /* corrupt cache — start fresh */ }
+    }
+    parsed.unshift(savedRecord);
+    localStorage.setItem(`agriheal_records_${userId}`, JSON.stringify(parsed));
+    qc.setQueryData(["records", userId], parsed);
+    return savedRecord;
+  };
+
+  useVoiceActions([
+    {
+      id: 'records.search',
+      description: 'Search farm records by title or category',
+      params: { query: 'string, required' },
+      destructive: false,
+      handler: ({ query }) => {
+        setSearch(query || '');
+        return query ? `Searching records for "${query}".` : 'Cleared the search.';
+      },
+    },
+    {
+      id: 'records.switchCategory',
+      description: `Filter farm records by category, or clear the filter: ${CATEGORIES.map(c => c.id).join(', ')}`,
+      params: { category: `one of: ${CATEGORIES.map(c => c.id).join(', ')}, or "all" to clear` },
+      destructive: false,
+      handler: ({ category }) => {
+        if (String(category || '').toLowerCase() === 'all') { setSelectedCategory(null); return 'Showing all records.'; }
+        const match = CATEGORIES.find((c) => c.id.toLowerCase() === String(category || '').toLowerCase());
+        if (!match) throw new Error(`"${category}" isn't a record category here.`);
+        setSelectedCategory(match.id);
+        return `Showing ${match.id}.`;
+      },
+    },
+    {
+      id: 'records.addRecord',
+      description: 'Add a new farm record with a title and category (no file attachment — voice can only create text-only record entries)',
+      params: { title: 'string, required', category: `optional, one of: ${CATEGORIES.map(c => c.id).join(', ')}` },
+      destructive: true, // a real "submit" that creates a permanent record
+      handler: async ({ title, category }) => {
+        const rec = await addRecordDirect({ title, category });
+        return `Added ${rec.title} to your Farm Locker.`;
+      },
+    },
+    {
+      id: 'records.deleteRecord',
+      description: 'Permanently delete a farm record by its title',
+      params: { title: 'string, required' },
+      destructive: true,
+      handler: async ({ title }) => {
+        const match = records.find((r) => r.title.toLowerCase() === String(title || '').toLowerCase());
+        if (!match) throw new Error(`I couldn't find a record titled "${title}".`);
+        await deleteMutation.mutateAsync(match.id);
+        return `Deleted ${match.title}.`;
+      },
+    },
+  ], [records, userId]);
 
   const share = async (rec) => {
     if (navigator.share) {

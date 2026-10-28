@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useVani } from '../contexts/VaniContext';
 import { useFarmer } from '../contexts/FarmerContext';
+import { useVoiceActions } from '../hooks/useVoiceActions';
 import { 
   Bell, Volume2, X, Plus, Calendar, AlertTriangle, 
    Leaf, Activity, Shield, TrendingUp, CloudRain, 
@@ -125,6 +126,61 @@ export default function Notifications() {
     speak(`${title}. ${message}`);
     markNotificationRead(id);
   };
+
+  useVoiceActions([
+    {
+      id: 'notifications.switchFilter',
+      description: `Filter the notifications/reminders list: ${filters.join(', ')}`,
+      params: { filter: `one of: ${filters.join(', ')}` },
+      destructive: false,
+      handler: ({ filter }) => {
+        const match = filters.find((f) => f.toLowerCase() === String(filter || '').toLowerCase());
+        if (!match) throw new Error(`"${filter}" isn't a filter here.`);
+        setActiveFilter(match);
+        return `Showing ${match}.`;
+      },
+    },
+    {
+      id: 'notifications.markAllRead',
+      description: 'Mark all notifications as read',
+      params: {},
+      destructive: false,
+      handler: () => {
+        markAllNotificationsRead();
+        return 'Marked all notifications as read.';
+      },
+    },
+    {
+      id: 'notifications.addReminder',
+      description: 'Create a new reminder with a title and optional message',
+      params: { title: 'string, required', message: 'optional string' },
+      destructive: true, // a real "submit" action
+      handler: ({ title, message }) => {
+        if (!title) throw new Error('I need a title to create a reminder.');
+        addNotification({
+          title,
+          message: message || 'Custom reminder',
+          type: 'Reminder',
+          category: 'Reminders',
+          time: 'Just now',
+          scheduledTime: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        });
+        return `Added reminder: ${title}.`;
+      },
+    },
+    {
+      id: 'notifications.deleteReminder',
+      description: 'Permanently delete a reminder by its title',
+      params: { title: 'string, required' },
+      destructive: true,
+      handler: ({ title }) => {
+        const match = notifications.find((n) => n.type === 'Reminder' && n.title.toLowerCase() === String(title || '').toLowerCase());
+        if (!match) throw new Error(`I couldn't find a reminder titled "${title}".`);
+        deleteNotification(match.id);
+        return `Deleted reminder: ${match.title}.`;
+      },
+    },
+  ], [notifications, filters.join(',')]);
 
   const handleEdit = (e, notif) => {
     e.stopPropagation();

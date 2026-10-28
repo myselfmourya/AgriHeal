@@ -89,10 +89,14 @@ const ALL_ROUTES = SETTINGS_GROUPS.flatMap(group => group.items);
 // valid values/type for each — keeps the AI from writing arbitrary keys
 // or garbage values into SettingsContext.
 const VOICE_SETTABLE = {
+  general: { units: ['metric', 'imperial'] },
   displayTheme: { theme: ['light', 'dark', 'system'] },
   language: { appLanguage: ['en-IN', 'hi-IN', 'te-IN', 'ta-IN', 'mr-IN'], voiceLanguage: ['en-IN', 'hi-IN', 'te-IN', 'ta-IN', 'mr-IN'] },
   voiceAssistant: { voiceSpeed: 'number 0.5-2', voiceVolume: 'number 0-100', wakeWord: 'boolean', autoListen: 'boolean' },
-  notifications: { allNotifications: 'boolean', pushNotifications: 'boolean' },
+  notifications: { allNotifications: 'boolean', pushNotifications: 'boolean', emailNotifications: 'boolean', smsNotifications: 'boolean' },
+  privacySecurity: { appLock: 'boolean', biometricLogin: 'boolean' },
+  offlineMode: { enabled: 'boolean', autoDownloadDatabase: 'boolean', cacheMarketPrices: 'boolean', cacheWeather: 'boolean' },
+  emergency: { shareLiveLocation: 'boolean', autoRecordAudio: 'boolean' },
 };
 
 export default function Settings() {

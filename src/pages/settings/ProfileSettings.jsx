@@ -6,6 +6,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFarmer } from '../../contexts/FarmerContext';
+import { useVoiceActions } from '../../hooks/useVoiceActions';
 
 const Field = ({ icon: Icon, label, name, value, onChange, type = 'text', placeholder }) => (
   <div className="space-y-1.5">
@@ -109,15 +110,44 @@ export default function ProfileSettings() {
         setSaved(true);
         await refreshProfile();
         setTimeout(() => setSaved(false), 3000);
-      } else {
-        setError(upsertErr.message);
+        return true;
       }
-    } else {
-      setSaved(true);
-      await refreshProfile();
-      setTimeout(() => setSaved(false), 3000);
+      setError(upsertErr.message);
+      return false;
     }
+    setSaved(true);
+    await refreshProfile();
+    setTimeout(() => setSaved(false), 3000);
+    return true;
   };
+
+  const VOICE_PROFILE_FIELDS = ['full_name', 'phone', 'village', 'district', 'state', 'farm_size_acres', 'experience_years'];
+
+  useVoiceActions([
+    {
+      id: 'profileSettings.updateField',
+      description: 'Update one field of the farmer\'s profile form — does not save until profileSettings.save is also called',
+      params: { field: `one of: ${VOICE_PROFILE_FIELDS.join(', ')}`, value: 'the new value, as plain text' },
+      destructive: false,
+      handler: ({ field, value }) => {
+        if (!VOICE_PROFILE_FIELDS.includes(field)) throw new Error(`I can't edit "${field}" — that's not a profile field here.`);
+        setForm((prev) => ({ ...prev, [field]: value }));
+        setSaved(false);
+        return `Set ${field} to ${value}. Say "save my profile" when you're done.`;
+      },
+    },
+    {
+      id: 'profileSettings.save',
+      description: 'Save the profile form',
+      params: {},
+      destructive: true, // writes to the real farmers row
+      handler: async () => {
+        const ok = await handleSave({ preventDefault: () => {} });
+        if (!ok) throw new Error('Failed to save your profile. Please try again.');
+        return 'Profile saved.';
+      },
+    },
+  ], [form]);
 
   if (loading) {
     return (

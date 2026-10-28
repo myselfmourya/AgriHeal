@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { useVani } from '../contexts/VaniContext';
 import { fetchNews } from '../services/aiNewsService';
 import DashboardQuickAccessModal from './DashboardQuickAccessModal';
+import { useVoiceActions } from '../hooks/useVoiceActions';
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -45,6 +46,23 @@ export default function FarmerDashboard() {
     { icon: Users, label: "Community", href: "/community" },
     { icon: Wrench, label: "Tools", href: "/store" },
   ];
+
+  const QUICK_ACCESS_LABELS = ['Crops', 'Weather', 'Growth', 'Irrigation', 'Pest & Disease', 'Market Prices'];
+
+  useVoiceActions([
+    {
+      id: 'dashboard.openQuickAccess',
+      description: `Open a quick-access info panel from the home dashboard: ${QUICK_ACCESS_LABELS.join(', ')}`,
+      params: { topic: `one of: ${QUICK_ACCESS_LABELS.join(', ')}` },
+      destructive: false,
+      handler: ({ topic }) => {
+        const match = QUICK_ACCESS_LABELS.find((l) => l.toLowerCase() === String(topic || '').toLowerCase());
+        if (!match) throw new Error(`I don't have a "${topic}" panel here.`);
+        setQuickAccessModal(match);
+        return `Opening ${match}.`;
+      },
+    },
+  ], []);
 
   useEffect(() => {
     // Mock fetching a reminder
