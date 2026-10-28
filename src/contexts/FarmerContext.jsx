@@ -121,10 +121,10 @@ export function FarmerProvider({ children }) {
             }))
             setMyCrops(mappedCrops)
           } else {
-            setMyCrops(getMockCrops())
+            setMyCrops(getLocalCrops())
           }
         } else {
-           setMyCrops(getMockCrops())
+           setMyCrops(getLocalCrops())
         }
 
         // Load notifications from local storage as fallback
@@ -140,7 +140,7 @@ export function FarmerProvider({ children }) {
 
       } catch (e) {
         console.error("Supabase fetch error:", e)
-        setMyCrops(getMockCrops())
+        setMyCrops(getLocalCrops())
       } finally {
         setIsLoading(false)
       }
@@ -149,29 +149,14 @@ export function FarmerProvider({ children }) {
     fetchSupabaseData()
   }, [user, isAuthenticated])
 
-  const getMockCrops = () => {
+  // Real crops saved locally (e.g. added before a farmer_id existed) — never
+  // fabricated placeholder data. No local save means no crops yet.
+  const getLocalCrops = () => {
     try {
       const saved = localStorage.getItem('ah-my-crops')
       if (saved) return JSON.parse(saved)
     } catch {}
-    return [
-        { 
-          id: 1, name: 'Paddy', emoji: '🌾', area: 5.0, stage: 'Flowering', health: 92, daysSinceSowing: 32, daysLeftToHarvest: 88, expectedHarvest: '110 Quintal', progress: 26, aiAdvice: 'Irrigation not needed today. Paddy crop is healthy.',
-          image: 'https://images.unsplash.com/photo-1595841696677-6489ff3f8cd1?auto=format&fit=crop&q=80&w=800',
-          growth: { status: 'Good', height: '85 cm', leafAreaIndex: 3.2, biomass: '+12%', rootDevelopment: 'Healthy', tillering: '18 tillers/m²' },
-          irrigation: { moisture: 72, moistureStatus: 'Good', recommendation: 'No irrigation needed', nextIrrigation: 'In 2 Days', method: 'Drip Irrigation', source: 'Borewell', usageThisWeek: '12,450 L' },
-          fertilizer: { status: 'Good', nitrogen: 'Adequate', phosphorus: 'Adequate', potassium: 'Slightly Low', sulphur: 'Adequate', zinc: 'Adequate', recommendation: [{ name: 'Urea (46% N)', qty: '20 kg/acre', time: 'Apply in 3 days' }, { name: 'MOP (60% K2O)', qty: '10 kg/acre', time: 'Apply in 5 days' }] },
-          pest: { overallRisk: 'Low', observations: [{ name: 'Leaf Blast', risk: 'Low' }, { name: 'Brown Plant Hopper', risk: 'Low' }, { name: 'Stem Borer', risk: 'Low' }, { name: 'Leaf Folder', risk: 'Low' }] },
-          soil: { score: 85, ph: 6.8, carbon: 0.75, nitrogen: 290, phosphorus: 22, potassium: 210 },
-          yield: { expectedYield: 22, totalYield: 110, price: 2350, revenue: 258500 },
-          expenses: { total: 18450, breakdown: { Fertilizer: 40, Seeds: 20, Pesticides: 15, Labor: 15, Others: 10 } },
-          inputs: [
-            { id: 101, type: 'Fertilizer', name: 'Urea (46% N)', qty: '20 kg/acre', date: '25 Apr 2025' },
-            { id: 102, type: 'Fertilizer', name: 'DAP (18:46:0)', qty: '15 kg/acre', date: '10 Apr 2025' }
-          ],
-          calendar: []
-        }
-    ]
+    return []
   }
 
   const updateProfile = async (data) => {

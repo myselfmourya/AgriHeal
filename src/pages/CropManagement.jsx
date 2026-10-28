@@ -100,6 +100,12 @@ function UserCropsTab() {
         </button>
       </div>
 
+      {displayCrops.length === 0 && (
+        <div className="glass rounded-2xl p-8 text-center text-gray-500 text-sm mb-6">
+          You haven't added any crops yet. Tap <span className="font-semibold text-gray-700">Add Crop</span> to start tracking your fields.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-6">
         {displayCrops.map((crop, i) => (
           <motion.div 
