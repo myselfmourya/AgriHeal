@@ -6,8 +6,13 @@
  *
  * Supported providers (in priority fallback order): Google Gemini, Groq, Mistral.
  *   chat/translate/summarize : groq → gemini → mistral
- *   image                    : gemini → groq (vision)
+ *   image                    : groq (vision) → gemini
  *   structured/document      : groq → gemini → mistral
+ *
+ * Every provider call has a 10s timeout so a stuck/slow provider fails fast
+ * instead of stalling the whole fallback chain. Structured/image/document
+ * intents use a low temperature for consistent, factual output; chat keeps
+ * the provider default so responses still read naturally.
  *
  * Groq leads the text-only chains — it's fast and its free tier is generous,
  * so routing ordinary chat/structured/document traffic there first keeps the
@@ -62,7 +67,7 @@ const MODELS = {
 // chain until the edge function's own runtime kills it — by then it's too
 // late to fall through to the next provider. Every provider call goes
 // through this so a slow/stuck API fails fast instead.
-const PROVIDER_TIMEOUT_MS = 15_000;
+const PROVIDER_TIMEOUT_MS = 10_000;
 
 async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
   const controller = new AbortController();
@@ -83,7 +88,8 @@ async function callGemini(
   prompt: string,
   systemInstruction: string | null,
   base64Image: string | null,
-  mimeType: string
+  mimeType: string,
+  temperature?: number
 ): Promise<string> {
   const key = Deno.env.get("GEMINI_API_KEY");
   if (!key) throw new Error("GEMINI_API_KEY not configured");
@@ -93,11 +99,14 @@ async function callGemini(
   parts.push({ text: prompt });
   if (base64Image) parts.push({ inline_data: { mime_type: mimeType, data: base64Image } });
 
+  const generationConfig: Record<string, unknown> = { maxOutputTokens: 4096 };
+  if (temperature !== undefined) generationConfig.temperature = temperature;
+
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS.gemini}:generateContent?key=${key}`;
   const res = await fetchWithTimeout(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts }], generationConfig: { maxOutputTokens: 4096 } }),
+    body: JSON.stringify({ contents: [{ parts }], generationConfig }),
   });
 
   const data = await res.json();
@@ -108,7 +117,8 @@ async function callGemini(
 async function callGroq(
   prompt: string,
   systemInstruction: string | null,
-  jsonMode = false
+  jsonMode = false,
+  temperature?: number
 ): Promise<string> {
   const key = Deno.env.get("GROQ_API_KEY");
   if (!key) throw new Error("GROQ_API_KEY not configured");
@@ -121,6 +131,7 @@ async function callGroq(
   // Prompting alone doesn't reliably stop this model from answering
   // conversationally — Groq's JSON mode makes it actually emit an object.
   if (jsonMode) body.response_format = { type: "json_object" };
+  if (temperature !== undefined) body.temperature = temperature;
 
   const res = await fetchWithTimeout("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -137,7 +148,8 @@ async function callGroqVision(
   prompt: string,
   systemInstruction: string | null,
   base64Image: string,
-  mimeType: string
+  mimeType: string,
+  temperature?: number
 ): Promise<string> {
   const key = Deno.env.get("GROQ_API_KEY");
   if (!key) throw new Error("GROQ_API_KEY not configured");
@@ -152,10 +164,13 @@ async function callGroqVision(
     ],
   });
 
+  const body: Record<string, unknown> = { model: MODELS.groqVision, messages, max_tokens: 4096 };
+  if (temperature !== undefined) body.temperature = temperature;
+
   const res = await fetchWithTimeout("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-    body: JSON.stringify({ model: MODELS.groqVision, messages, max_tokens: 4096 }),
+    body: JSON.stringify(body),
   });
 
   const data = await res.json();
@@ -166,7 +181,8 @@ async function callGroqVision(
 async function callMistral(
   prompt: string,
   systemInstruction: string | null,
-  jsonMode = false
+  jsonMode = false,
+  temperature?: number
 ): Promise<string> {
   const key = Deno.env.get("MISTRAL_API_KEY");
   if (!key) throw new Error("MISTRAL_API_KEY not configured");
@@ -177,6 +193,7 @@ async function callMistral(
 
   const body: Record<string, unknown> = { model: MODELS.mistral, messages, max_tokens: 4096 };
   if (jsonMode) body.response_format = { type: "json_object" };
+  if (temperature !== undefined) body.temperature = temperature;
 
   const res = await fetchWithTimeout("https://api.mistral.ai/v1/chat/completions", {
     method: "POST",
@@ -194,10 +211,20 @@ type Intent = "chat" | "image" | "structured" | "document";
 
 const CHAINS: Record<Intent, string[]> = {
   chat:       ["groq", "gemini", "mistral"],
-  image:      ["gemini", "groqVision"],
+  // Groq first: it's consistently fast, and Gemini has been intermittently
+  // overloaded/slow — trying it first just means waiting out its timeout
+  // before falling through. Gemini stays as a second opinion/fallback.
+  image:      ["groqVision", "gemini"],
   structured: ["groq", "gemini", "mistral"],
   document:   ["groq", "gemini", "mistral"],
 };
+
+// Lower temperature for anything that must be factually consistent
+// (diagnosis, structured data, document extraction); keep chat's default
+// so farming advice still reads naturally rather than terse and robotic.
+function temperatureFor(intent: Intent): number | undefined {
+  return intent === "chat" ? undefined : 0.3;
+}
 
 async function executeWithFallback(
   intent: Intent,
@@ -209,17 +236,18 @@ async function executeWithFallback(
   const chain = CHAINS[intent] ?? CHAINS.chat;
   const errors: string[] = [];
   const jsonMode = intent === "structured";
+  const temperature = temperatureFor(intent);
 
   for (const provider of chain) {
     try {
       console.log(`[ai-proxy] intent=${intent} trying=${provider}`);
-      if (provider === "groq") return await callGroq(prompt, systemInstruction, jsonMode);
+      if (provider === "groq") return await callGroq(prompt, systemInstruction, jsonMode, temperature);
       if (provider === "groqVision") {
         if (!base64Image) throw new Error("groqVision requires an image");
-        return await callGroqVision(prompt, systemInstruction, base64Image, mimeType);
+        return await callGroqVision(prompt, systemInstruction, base64Image, mimeType, temperature);
       }
-      if (provider === "gemini") return await callGemini(prompt, systemInstruction, base64Image, mimeType);
-      if (provider === "mistral") return await callMistral(prompt, systemInstruction, jsonMode);
+      if (provider === "gemini") return await callGemini(prompt, systemInstruction, base64Image, mimeType, temperature);
+      if (provider === "mistral") return await callMistral(prompt, systemInstruction, jsonMode, temperature);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn(`[ai-proxy] ${provider} failed: ${msg}`);
