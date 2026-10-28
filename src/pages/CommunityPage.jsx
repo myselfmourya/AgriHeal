@@ -8,6 +8,7 @@ import {
 import { useFarmer } from '../contexts/FarmerContext';
 import { generateText } from '../services/aiProvider';
 import { communityService } from '../services/communityService';
+import { useVoiceActions } from '../hooks/useVoiceActions';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 function timeAgo(iso) {
@@ -538,6 +539,22 @@ function GroupsTab() {
     }
   };
 
+  useVoiceActions([
+    {
+      id: 'community.joinGroup',
+      description: 'Join or leave a discussion group, by its name',
+      params: { groupName: 'string, required — e.g. "Paddy Farmers India"' },
+      destructive: false,
+      handler: async ({ groupName }) => {
+        const match = groups.find((g) => g.name.toLowerCase() === String(groupName || '').toLowerCase());
+        if (!match) throw new Error(`I couldn't find a group named ${groupName}.`);
+        const wasJoined = joined.has(match.id);
+        await toggleJoin(match);
+        return wasJoined ? `Left ${match.name}.` : `Joined ${match.name}.`;
+      },
+    },
+  ], [groups, joined, usingSample]);
+
   return (
     <div className="space-y-3">
       <div className="bg-gradient-to-br from-green-600 to-emerald-700 rounded-2xl p-5 text-white">
@@ -739,6 +756,22 @@ function EventsTab({ events, loading, usingSample }) {
     }
   };
 
+  useVoiceActions([
+    {
+      id: 'community.registerForEvent',
+      description: 'Register or unregister for an upcoming community event, by its title',
+      params: { eventTitle: 'string, required — e.g. "Organic Farming Workshop"' },
+      destructive: false,
+      handler: async ({ eventTitle }) => {
+        const match = events.find((e) => e.title.toLowerCase().includes(String(eventTitle || '').toLowerCase()));
+        if (!match) throw new Error(`I couldn't find an event matching "${eventTitle}".`);
+        const wasRegistered = registered.has(String(match.id));
+        await toggleRegister(match);
+        return wasRegistered ? `Unregistered from ${match.title}.` : `Registered for ${match.title}.`;
+      },
+    },
+  ], [events, registered]);
+
   return (
     <div className="space-y-3">
       <div className="bg-gradient-to-br from-orange-500 to-amber-600 rounded-2xl p-5 text-white">
@@ -847,6 +880,37 @@ export default function CommunityPage() {
     setUsingSamplePosts(false);
     setActiveTab('feed');
   };
+
+  useVoiceActions([
+    {
+      id: 'community.switchTab',
+      description: 'Switch which section of the Community page is shown: Feed, Groups, Ask AI, Connect (farmers), or Events',
+      params: { tab: 'one of: "feed", "groups", "qa", "farmers", "events"' },
+      destructive: false,
+      handler: ({ tab }) => {
+        const match = tabs.find((t) => t.id === String(tab || '').toLowerCase());
+        if (!match) throw new Error(`I don't have a "${tab}" section here.`);
+        setActiveTab(match.id);
+        return `Showing ${match.label}.`;
+      },
+    },
+    {
+      id: 'community.createPost',
+      description: 'Create and publish a new community post with the given text content, and an optional category',
+      params: {
+        content: 'string, required — the full text of the post',
+        category: 'optional — one of: "Question", "Crop Care", "Pest & Disease", "Farming Tip", "Success Story", "Market Prices". Defaults to "Question"',
+      },
+      destructive: true, // a real "submit" action that publishes publicly — confirm first
+      handler: async ({ content, category }) => {
+        if (!content) throw new Error('No post content given.');
+        const cat = category || 'Question';
+        const row = await communityService.createPost(content, cat, { authorName: profile?.name || 'Farmer' });
+        handleCreated(mapDbPostToUi(row));
+        return 'Posted to the community feed.';
+      },
+    },
+  ], [profile?.name]);
 
   return (
     <div className="min-h-full bg-[#f4f7f5] pb-24 md:pb-12 relative">

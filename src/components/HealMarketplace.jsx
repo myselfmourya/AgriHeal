@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import { useFarmer } from '../contexts/FarmerContext';
 import { fetchMarketPrices } from '../services/marketService';
+import { useVoiceActions } from '../hooks/useVoiceActions';
 
 // Accurate current Indian Market Prices (per quintal)
 export const allCrops = [
@@ -283,6 +284,57 @@ export default function HealMarketplace({ onSpeak }) {
     e?.stopPropagation();
     toggleMarketFavorite(cropName);
   };
+
+  useVoiceActions([
+    {
+      id: 'market.switchSection',
+      description: 'Switch which section of the Market page is shown: Market Prices, Finance, or Support',
+      params: { section: 'one of: "Market Prices", "Finance", "Support"' },
+      destructive: false,
+      handler: ({ section }) => {
+        const match = ['Market Prices', 'Finance', 'Support'].find((s) => s.toLowerCase() === String(section || '').toLowerCase());
+        if (!match) throw new Error(`I don't have a "${section}" section here.`);
+        setActiveSection(match);
+        return `Showing ${match}.`;
+      },
+    },
+    {
+      id: 'market.selectCrop',
+      description: 'Show the price chart and details for a specific crop, by name',
+      params: { cropName: 'string, required — e.g. "Paddy", "Tomato"' },
+      destructive: false,
+      handler: ({ cropName }) => {
+        const match = allCrops.find((c) => c.name.toLowerCase() === String(cropName || '').toLowerCase());
+        if (!match) throw new Error(`I couldn't find "${cropName}" in the crop list.`);
+        setSelectedCrop(match.name);
+        setActiveSection('Market Prices');
+        return `Showing ${match.name} at ${match.price} rupees per ${match.unit}.`;
+      },
+    },
+    {
+      id: 'market.toggleFavorite',
+      description: 'Add or remove a crop from favorites, by name',
+      params: { cropName: 'string, required' },
+      destructive: false,
+      handler: ({ cropName }) => {
+        const match = allCrops.find((c) => c.name.toLowerCase() === String(cropName || '').toLowerCase());
+        if (!match) throw new Error(`I couldn't find "${cropName}" in the crop list.`);
+        const wasFavorite = favorites.includes(match.name);
+        toggleMarketFavorite(match.name);
+        return wasFavorite ? `Removed ${match.name} from favorites.` : `Added ${match.name} to favorites.`;
+      },
+    },
+    {
+      id: 'market.openChat',
+      description: 'Open the Ask Vani chat for market and finance questions',
+      params: {},
+      destructive: false,
+      handler: () => {
+        setShowAiChat(true);
+        return 'Opening Ask Vani.';
+      },
+    },
+  ], [favorites, toggleMarketFavorite]);
 
   const handleSendMessage = async () => {
     const query = chatMessage.trim();

@@ -6,6 +6,8 @@ import { useVani } from '../contexts/VaniContext';
 import AmbientVoiceOverlay from './Vani/AmbientVoiceOverlay';
 import { useTranslation } from 'react-i18next';
 import { useFarmer } from '../contexts/FarmerContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useVoiceActions } from '../hooks/useVoiceActions';
 
 // Utility for classes
 function cn(...classes) {
@@ -18,7 +20,25 @@ export default function Layout({ children }) {
   const { t } = useTranslation();
   const { overlay } = useVani();
   const { profile } = useFarmer();
+  const { logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Registered here (not a specific settings page) since the farmer should
+  // be able to log out by voice from anywhere in the authenticated app —
+  // Layout wraps every logged-in page.
+  useVoiceActions([
+    {
+      id: 'auth.logout',
+      description: 'Log the farmer out of their AgriHeal account',
+      params: {},
+      destructive: true, // ends the session — confirm first
+      handler: async () => {
+        await logout();
+        navigate('/login');
+        return 'You have been logged out.';
+      },
+    },
+  ], [logout, navigate]);
 
   const navItems = [
     { icon: Home, href: '/home', label: 'Home' },

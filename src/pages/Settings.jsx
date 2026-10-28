@@ -27,6 +27,8 @@ import EmergencySettings from './settings/EmergencySettings';
 import AboutAppSettings from './settings/AboutAppSettings';
 import AccountSettings from './settings/AccountSettings';
 import ProfileSettings from './settings/ProfileSettings';
+import { useSettings } from '../contexts/SettingsContext';
+import { useVoiceActions } from '../hooks/useVoiceActions';
 
 // Dummy component for unimplemented settings
 const PlaceholderSettings = ({ title }) => (
@@ -83,10 +85,52 @@ const SETTINGS_GROUPS = [
 // Flatten for routing
 const ALL_ROUTES = SETTINGS_GROUPS.flatMap(group => group.items);
 
+// Whitelist of settings a voice command is allowed to change, with the
+// valid values/type for each — keeps the AI from writing arbitrary keys
+// or garbage values into SettingsContext.
+const VOICE_SETTABLE = {
+  displayTheme: { theme: ['light', 'dark', 'system'] },
+  language: { appLanguage: ['en-IN', 'hi-IN', 'te-IN', 'ta-IN', 'mr-IN'], voiceLanguage: ['en-IN', 'hi-IN', 'te-IN', 'ta-IN', 'mr-IN'] },
+  voiceAssistant: { voiceSpeed: 'number 0.5-2', voiceVolume: 'number 0-100', wakeWord: 'boolean', autoListen: 'boolean' },
+  notifications: { allNotifications: 'boolean', pushNotifications: 'boolean' },
+};
+
 export default function Settings() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { updateSetting } = useSettings();
+
+  useVoiceActions([
+    {
+      id: 'settings.update',
+      description: "Change one of the farmer's app preferences. Only use an exact section/key pair from the allowed list — never invent a new one.",
+      params: {
+        section: `one of: ${Object.keys(VOICE_SETTABLE).join(', ')}`,
+        key: Object.entries(VOICE_SETTABLE).map(([s, keys]) => `${s}: ${Object.entries(keys).map(([k, v]) => `"${k}" (${Array.isArray(v) ? v.join('|') : v})`).join(', ')}`).join(' | '),
+        value: "the new value, matching the key's allowed values/type exactly",
+      },
+      destructive: false, // easily reversible preference toggles
+      handler: ({ section, key, value }) => {
+        const allowedKeys = VOICE_SETTABLE[section];
+        if (!allowedKeys || !(key in allowedKeys)) {
+          throw new Error(`I can't change "${section}.${key}" — that's not a setting I'm allowed to change.`);
+        }
+        const allowed = allowedKeys[key];
+        let coerced = value;
+        if (Array.isArray(allowed)) {
+          if (!allowed.includes(value)) throw new Error(`"${value}" isn't a valid value for ${key}.`);
+        } else if (allowed === 'boolean') {
+          coerced = value === true || value === 'true' || value === 'on' || value === 'yes';
+        } else if (allowed.startsWith('number')) {
+          coerced = Number(value);
+          if (Number.isNaN(coerced)) throw new Error(`"${value}" isn't a valid number for ${key}.`);
+        }
+        updateSetting(section, key, coerced);
+        return `Updated ${key} to ${coerced}.`;
+      },
+    },
+  ], [updateSetting]);
 
   // If we are exactly on /settings, redirect to account
   if (location.pathname === '/settings') {

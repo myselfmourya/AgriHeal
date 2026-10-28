@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useFarmer } from '../../contexts/FarmerContext';
 import { supabase } from '../../lib/supabase';
 import { dataManagementService } from '../../services/dataManagementService';
+import { useVoiceActions } from '../../hooks/useVoiceActions';
 
 export default function AccountSettings() {
   const { user, logout, sendPasswordReset } = useAuth();
@@ -47,22 +48,41 @@ export default function AccountSettings() {
     }
   };
 
-  const handleDeleteAccount = async () => {
-    const confirmed = window.confirm(
-      'This permanently deletes your account and all farm data. This cannot be undone. Continue?'
-    );
-    if (!confirmed) return;
+  const runDeleteAccount = async () => {
     setBusy('delete');
     setMessage(null);
     const ok = await dataManagementService.deleteAccount();
     if (ok) {
       await logout();
       window.location.href = '/login';
-    } else {
-      setMessage({ type: 'error', text: 'Failed to delete account. Please try again or contact support.' });
-      setBusy(null);
+      return true;
     }
+    setMessage({ type: 'error', text: 'Failed to delete account. Please try again or contact support.' });
+    setBusy(null);
+    return false;
   };
+
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm(
+      'This permanently deletes your account and all farm data. This cannot be undone. Continue?'
+    );
+    if (!confirmed) return;
+    await runDeleteAccount();
+  };
+
+  useVoiceActions([
+    {
+      id: 'account.deleteAccount',
+      description: 'Permanently delete the farmer\'s AgriHeal account and all their farm data',
+      params: {},
+      destructive: true, // Vani's own "say yes to confirm" flow replaces the browser popup here
+      handler: async () => {
+        const ok = await runDeleteAccount();
+        if (!ok) throw new Error('Could not delete your account. Please try again or contact support.');
+        return 'Your account has been deleted.';
+      },
+    },
+  ], []);
 
   return (
     <div className="animate-in fade-in slide-in-from-right-4 duration-300 w-full pb-10">
