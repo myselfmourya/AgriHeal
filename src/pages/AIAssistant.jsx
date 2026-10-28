@@ -559,17 +559,18 @@ function PredictTab() {
     const [selectedCropId, setSelectedCropId] = useState(myCrops[0]?.id || null);
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
+    const [error, setError] = useState("");
 
     const predict = async () => {
         if (!selectedCropId) return;
-        setLoading(true); setResult(null);
+        setLoading(true); setResult(null); setError("");
 
         try {
             const crop = myCrops.find(c => c.id === selectedCropId);
             const { generateStructuredResponse } = await import('../services/aiProvider');
-            
+
             const prompt = `Analyze predictive risks for crop: ${crop.name}. Region: India. Consider typical weather patterns and current agricultural trends.\n\nProvide yield loss risk (0-100), pest risk (0-100), and soil degradation risk (0-100). Also provide 3 concrete agricultural suggestions and up to 2 critical alerts if necessary.`;
-            
+
             const schema = `{
                 "cropName": "string",
                 "yieldRisk": "number (0-100)",
@@ -578,21 +579,12 @@ function PredictTab() {
                 "suggestions": ["string"],
                 "alerts": ["string"]
             }`;
-            
+
             const resultObj = await generateStructuredResponse(prompt, schema);
             setResult(resultObj);
         } catch (err) {
             console.error("Predict Error:", err);
-            // fallback
-            const crop = myCrops.find(c => c.id === selectedCropId);
-            setResult({
-                cropName: crop.name,
-                yieldRisk: 15,
-                pestRisk: 30,
-                soilDegradationRisk: 20,
-                suggestions: ["Rotate crops next season", "Monitor moisture levels"],
-                alerts: []
-            });
+            setError("Couldn't generate a live prediction right now. Please check your connection and try again.");
         } finally {
             setLoading(false);
         }
@@ -627,6 +619,12 @@ function PredictTab() {
             >
                 {loading ? <><RefreshCw className="w-5 h-5 animate-spin" /> Analyzing with VANI...</> : <><Brain className="w-5 h-5" /> Run Predictive Analysis</>}
             </button>
+
+            {error && (
+                <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-700 mb-4">
+                    <CircleAlert className="w-4 h-4 inline mr-2" />{error}
+                </div>
+            )}
 
             {result && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 pb-6">
