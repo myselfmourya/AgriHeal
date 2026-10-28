@@ -50,17 +50,15 @@ export default function Register() {
     <div className="flex flex-col lg:flex-row h-[100dvh] bg-[#FDFCF7] lg:h-screen overflow-hidden">
       
       {/* Graphic Section for Desktop */}
-      <div className="hidden lg:flex relative w-1/2 rounded-r-[60px] overflow-hidden bg-green-50 shadow-xl items-center justify-center p-12">
-        <img 
-          src="/assets/welcome-hero.jpg"
-          alt="AgriHeal Farmer" 
-          className="w-full h-full object-contain object-center drop-shadow-md"
-        />
-        <div className="absolute top-12 left-0 right-0 flex justify-center items-center gap-2">
-          <div className="flex items-center gap-2">
-            <img src="/app-logo.jpg" alt="AgriHeal Logo" className="w-10 h-10 object-contain mix-blend-multiply" /> <span className="text-2xl font-bold text-green-800">AgriHeal</span>
-          </div>
+      <div className="hidden lg:flex relative w-1/2 rounded-r-[60px] overflow-hidden bg-green-50 shadow-xl flex-col items-center p-10 gap-6">
+        <div className="flex items-center gap-2">
+          <img src="/app-logo.jpg" alt="AgriHeal Logo" className="w-10 h-10 object-contain mix-blend-multiply" /> <span className="text-2xl font-bold text-green-800">AgriHeal</span>
         </div>
+        <img
+          src="/assets/welcome-hero.jpg"
+          alt="AgriHeal Farmer"
+          className="flex-1 w-full min-h-0 object-cover object-center rounded-[32px] drop-shadow-md"
+        />
       </div>
 
       {/* Form Section */}
