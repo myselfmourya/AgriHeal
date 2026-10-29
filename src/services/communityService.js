@@ -217,6 +217,15 @@ export const communityService = {
     } catch (error) { return []; }
   },
 
+  // head:true + count:'exact' asks Postgres for just the row count, no rows.
+  async getFarmerCount() {
+    try {
+      const { count, error } = await supabase.from('farmers').select('*', { count: 'exact', head: true });
+      if (error) return null;
+      return count ?? null;
+    } catch (error) { return null; }
+  },
+
   async getMyEventRegistrations() {
     try {
       const { data: { session } } = await supabase.auth.getSession();

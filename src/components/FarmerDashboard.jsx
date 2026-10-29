@@ -32,6 +32,7 @@ export default function FarmerDashboard() {
   const [reminder, setReminder] = useState(null);
   const [news, setNews] = useState([]);
   const [newsLoading, setNewsLoading] = useState(true);
+  const [newsError, setNewsError] = useState(false);
   const [quickAccessModal, setQuickAccessModal] = useState(null);
   
   const QUICK_ACTIONS = [
@@ -65,21 +66,25 @@ export default function FarmerDashboard() {
   ], []);
 
   useEffect(() => {
-    // Fetch AI-generated agri news
+    // Fetch real, live agri news (Google News RSS via news-proxy)
     const loadNews = async () => {
       try {
         const fetchedNews = await fetchNews(profile?.location || "India", profile?.crops || ["Wheat", "Rice"], 'en');
         if (fetchedNews && fetchedNews.length > 0) {
           // Display the top 3 news articles on the dashboard
           setNews(fetchedNews.slice(0, 3));
+          setNewsError(false);
+        } else {
+          setNewsError(true);
         }
       } catch (err) {
         console.error("Error loading news:", err);
+        setNewsError(true);
       } finally {
         setNewsLoading(false);
       }
     };
-    
+
     loadNews();
   }, []);
 
@@ -269,8 +274,10 @@ export default function FarmerDashboard() {
         ) : (
           <div className="bg-white rounded-[1.5rem] p-5 text-center border border-gray-100">
             <Newspaper className="w-7 h-7 text-gray-200 mx-auto mb-3" />
-            <p className="text-[15px] font-bold text-gray-800">{t("Powered by Vani AI")}</p>
-            <p className="text-[13px] text-gray-500 mt-1 font-medium">{t("AI is analyzing agriculture news")}</p>
+            <p className="text-[15px] font-bold text-gray-800">{newsError ? t("Couldn't load live news") : t("No news right now")}</p>
+            <p className="text-[13px] text-gray-500 mt-1 font-medium">
+              {newsError ? t("The news service is temporarily unavailable.") : t("Check back later for agriculture updates.")}
+            </p>
           </div>
         )}
       </motion.div>

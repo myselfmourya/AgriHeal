@@ -43,6 +43,35 @@ export const getHeatFrostRisk = ({ tempMaxC, tempMinC }) => {
 };
 
 /**
+ * NOAA/NWS heat index (Rothfusz regression), the standard "feels like"
+ * formula used by weather services worldwide. Input/output in Celsius;
+ * the regression itself works in Fahrenheit internally.
+ * Reference: https://www.wpc.ncep.noaa.gov/html/heatindex_equation.shtml
+ */
+export const computeHeatIndexC = (tempC, humidityPct) => {
+  const T = tempC * 9 / 5 + 32;
+  const R = humidityPct;
+  let hiF = 0.5 * (T + 61 + (T - 68) * 1.2 + R * 0.094);
+  // The simple formula above is only used as a quick pre-check; the full
+  // regression (more accurate, what NWS actually publishes) applies above ~80°F.
+  if ((hiF + T) / 2 >= 80) {
+    hiF = -42.379 + 2.04901523 * T + 10.14333127 * R - 0.22475541 * T * R
+      - 0.00683783 * T * T - 0.05481717 * R * R + 0.00122874 * T * T * R
+      + 0.00085282 * T * R * R - 0.00000199 * T * T * R * R;
+  }
+  return Math.round(((hiF - 32) * 5 / 9) * 10) / 10;
+};
+
+/** NWS heat index danger categories, thresholds converted to Celsius. */
+export const getHeatIndexCategory = (heatIndexC) => {
+  if (heatIndexC >= 51) return { level: 'Extreme Danger', advice: 'Heat stroke highly likely with continued exposure. Stop outdoor work.' };
+  if (heatIndexC >= 39) return { level: 'Danger', advice: 'Heat cramps/exhaustion likely, heat stroke possible with prolonged exposure or activity.' };
+  if (heatIndexC >= 32) return { level: 'Extreme Caution', advice: 'Heat cramps and heat exhaustion possible with prolonged exposure or activity.' };
+  if (heatIndexC >= 27) return { level: 'Caution', advice: 'Fatigue possible with prolonged exposure or activity.' };
+  return { level: 'Safe', advice: 'No significant heat risk at this time.' };
+};
+
+/**
  * A general weather-based estimate, NOT species-specific pest/disease
  * detection. High humidity + warm temperatures favor fungal growth and
  * insect activity broadly — the usual agri-extension rule of thumb.

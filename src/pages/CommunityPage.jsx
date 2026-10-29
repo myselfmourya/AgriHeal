@@ -829,6 +829,11 @@ export default function CommunityPage() {
   const [eventsLoading, setEventsLoading] = useState(true);
   const [usingSampleEvents, setUsingSampleEvents] = useState(false);
 
+  const [farmerCount, setFarmerCount] = useState(null);
+  useEffect(() => {
+    communityService.getFarmerCount().then(setFarmerCount);
+  }, []);
+
   const loadPosts = useCallback(async () => {
     setPostsLoading(true);
     try {
@@ -923,7 +928,9 @@ export default function CommunityPage() {
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-500 bg-green-50 border border-green-100 px-3 py-2 rounded-xl">
             <Users className="w-4 h-4 text-green-600" />
-            <span className="font-bold text-green-700">45k+ Farmers</span>
+            <span className="font-bold text-green-700">
+              {farmerCount != null ? `${farmerCount.toLocaleString('en-IN')} Farmer${farmerCount === 1 ? '' : 's'}` : 'Farmers'}
+            </span>
           </div>
         </div>
       </div>

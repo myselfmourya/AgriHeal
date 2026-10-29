@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { User, Sprout, PawPrint, Heart, Scroll, Shield } from 'lucide-react'
 import { useVani, LANGS } from '../contexts/VaniContext'
@@ -13,31 +13,45 @@ export default function Profile() {
   
   const [activeTab, setActiveTab] = useState('personal')
   const [isEditing, setIsEditing] = useState(false)
+  // Empty defaults, not a fabricated person — a field the real profile
+  // hasn't set should render blank (prompting the farmer to fill it in),
+  // never a stranger's invented name/phone/address.
   const [editForm, setEditForm] = useState({
-    name: 'Ramesh Kumar',
-    phone: '+91 9876543210',
-    whatsapp: '+91 9876543210',
-    email: 'ramesh@example.com',
-    village: 'Palampur',
-    district: 'Kangra',
-    state: 'Himachal Pradesh',
-    pin: '176061',
-    language: 'hi',
-    dob: '1975-05-15',
-    gender: 'Male',
-    emergency1: '9876543211',
-    emergency2: '9876543212',
-    farmName: 'Ramesh Farms',
-    landSize: '4.5',
-    surveyNumber: 'SV-1234',
-    soilType: 'Loamy',
-    waterSource: 'Borewell',
-    activeCrops: profile?.crops || ['Wheat', 'Mustard'],
-    irrigation: 'Drip',
-    experience: '20',
-    certifications: ['Organic (NPOP)'],
+    name: '',
+    phone: '',
+    whatsapp: '',
+    email: '',
+    village: '',
+    district: '',
+    state: '',
+    pin: '',
+    language: 'en',
+    dob: '',
+    gender: '',
+    emergency1: '',
+    emergency2: '',
+    farmName: '',
+    landSize: '',
+    surveyNumber: '',
+    soilType: '',
+    waterSource: '',
+    activeCrops: profile?.crops || [],
+    irrigation: '',
+    experience: '',
+    certifications: [],
     ...profile
   })
+
+  // profile loads asynchronously (a Supabase fetch in FarmerContext), so the
+  // useState initializer above usually captures the DEFAULT_PROFILE
+  // placeholder, not the real data — without this, the form would stay
+  // empty even once the real profile arrives. Skipped while actively
+  // editing so it can't clobber in-progress, unsaved changes.
+  useEffect(() => {
+    if (!isEditing && profile) {
+      setEditForm((prev) => ({ ...prev, activeCrops: profile.crops || prev.activeCrops, ...profile }));
+    }
+  }, [profile, isEditing]);
 
   const handleSave = () => {
     updateProfile(editForm)
@@ -78,6 +92,23 @@ export default function Profile() {
     },
   ], [editForm]);
 
+  // A real, if simple, score: how much of the safety-relevant profile is
+  // actually filled in, not an invented number. Weighted toward the fields
+  // that matter most in an emergency (contact info) over nice-to-haves.
+  const SAFETY_FIELDS = [
+    { key: 'phone', weight: 2 },
+    { key: 'emergency1', weight: 2 },
+    { key: 'village', weight: 1 },
+    { key: 'district', weight: 1 },
+    { key: 'state', weight: 1 },
+    { key: 'dob', weight: 1 },
+    { key: 'gender', weight: 1 },
+    { key: 'emergency2', weight: 1 },
+  ];
+  const totalWeight = SAFETY_FIELDS.reduce((sum, f) => sum + f.weight, 0);
+  const filledWeight = SAFETY_FIELDS.reduce((sum, f) => sum + (editForm[f.key] ? f.weight : 0), 0);
+  const safetyScore = Math.round((filledWeight / totalWeight) * 100);
+
   const tabs = [
     { id: 'personal', icon: User, label: 'Personal' },
     { id: 'farm', icon: Sprout, label: 'Farm' },
@@ -107,9 +138,9 @@ export default function Profile() {
               <div className="relative w-16 h-16">
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                   <circle cx="18" cy="18" r="16" fill="none" className="stroke-[var(--surface)]" strokeWidth="4" />
-                  <circle cx="18" cy="18" r="16" fill="none" className="stroke-[var(--brand-green)]" strokeWidth="4" strokeDasharray="100 100" strokeDashoffset="18" />
+                  <circle cx="18" cy="18" r="16" fill="none" className="stroke-[var(--brand-green)]" strokeWidth="4" strokeDasharray="100 100" strokeDashoffset={100 - safetyScore} />
                 </svg>
-                <div className="absolute inset-0 flex items-center justify-center font-bold text-sm">82</div>
+                <div className="absolute inset-0 flex items-center justify-center font-bold text-sm">{safetyScore}</div>
               </div>
               <span className="text-xs text-[var(--text-500)] mt-1">Safety Score</span>
             </div>
